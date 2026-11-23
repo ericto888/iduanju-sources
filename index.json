@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "name": "iDuanJu 站源商店",
-  "updatedAt": "2026-11-23",
+  "updatedAt": "2026-11-24",
   "categories": [
     {
       "id": "video",
@@ -20,5 +20,17 @@
       "name": "直播"
     }
   ],
-  "plugins": []
+  "plugins": [
+    {
+      "id": "com.eric.idj.huanggua",
+      "name": "黄瓜短剧",
+      "manifest": "https://raw.githubusercontent.com/ericto888/iduanju-sources/main/sources/com.eric.idj.huanggua/manifest.json",
+      "type": "shortdrama",
+      "adult": false,
+      "version": "1.0.0",
+      "description": "黄瓜短剧：分类、详情、多集播放、自动发现最新地址与线路缓存。",
+      "category": "shortdrama",
+      "author": "iDuanJu 社区移植"
+    }
+  ]
 }
