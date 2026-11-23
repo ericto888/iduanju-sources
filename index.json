@@ -27,8 +27,8 @@
       "manifest": "https://raw.githubusercontent.com/ericto888/iduanju-sources/main/sources/com.eric.idj.huanggua/manifest.json",
       "type": "shortdrama",
       "adult": true,
-      "version": "1.0.5",
-      "description": "黄瓜短剧：分类、详情、多集播放、自动发现最新地址；补充当前 HLS CDN 域名授权。",
+      "version": "1.0.6",
+      "description": "黄瓜短剧：分类、详情、多集播放、按详情页总集数补齐完整选集；自动发现最新地址。",
       "category": "shortdrama",
       "author": "iDuanJu 社区移植"
     }
