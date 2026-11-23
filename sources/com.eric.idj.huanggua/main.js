@@ -142,7 +142,7 @@ function parseCards(body,siteHost) {
   return items;
 }
 function chaptersFor(body,alias) {
-  const re=new RegExp("/play/"+alias+"/(\\\\d+)","g"),seen={},out=[];let m;
+  const re=new RegExp("/play/"+alias+"/(\\d+)","g"),seen={},out=[];let m;
   while((m=re.exec(body))!==null){const n=Number(m[1]);if(n>0&&n<=9999)seen[n]=true;}
   for(const n of Object.keys(seen).map(Number).sort((a,b)=>a-b))out.push({id:alias+"/"+n,name:"第"+n+"集"});
   if(!out.length)out.push({id:alias+"/1",name:"第1集"});
@@ -177,7 +177,7 @@ export default {
   async search({keyword}){if(!str(keyword))return{items:[],hasMore:false};fail("E_UNSUPPORTED","黄瓜短剧当前站点没有可用的搜索接口");},
   async detail({id}){const r=await getDetail(id);return{title:r.title,cover:r.cover,desc:r.desc,lines:[{name:"默认线路",episodes:r.chapters}]};},
   async play({episodeId}){
-    const p=str(episodeId).split("/");if(p.length!==2||!/^[a-zA-Z0-9-]+$/.test(p[0])||!/^\\d+$/.test(p[1]))fail("E_PARSE","黄瓜短剧集 ID 无效");
+    const p=str(episodeId).split("/");if(p.length!==2||!/^[a-zA-Z0-9-]+$/.test(p[0])||!/^\d+$/.test(p[1]))fail("E_PARSE","黄瓜短剧集 ID 无效");
     const h=await getHost(),url=h+"/play/"+encodeURIComponent(p[0])+"/"+Number(p[1]);
     const body=await pageWithRefresh(url,url,b=>!!parsePlayUrl(b)),media=parsePlayUrl(body);
     if(!media)fail("E_PARSE","黄瓜短剧没有返回播放地址");
