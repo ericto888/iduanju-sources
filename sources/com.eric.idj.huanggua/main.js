@@ -141,9 +141,12 @@ function parseCards(body,siteHost) {
   }
   return items;
 }
-function chaptersFor(body,alias) {
+function chaptersFor(body,alias,totalEpisodes) {
   const re=new RegExp("/play/"+alias+"/(\\d+)","g"),seen={},out=[];let m;
   while((m=re.exec(body))!==null){const n=Number(m[1]);if(n>0&&n<=9999)seen[n]=true;}
+  const total=Math.max(0,Math.min(9999,Math.floor(Number(totalEpisodes)||0)));
+  // 详情页结构化数据提供总集数时，补齐页面 HTML 中未直接输出的选集链接。
+  for(let n=1;n<=total;n++)seen[n]=true;
   for(const n of Object.keys(seen).map(Number).sort((a,b)=>a-b))out.push({id:alias+"/"+n,name:"第"+n+"集"});
   if(!out.length)out.push({id:alias+"/1",name:"第1集"});
   return out;
@@ -181,7 +184,7 @@ async function getDetail(alias) {
   if(!title)fail("E_PARSE","黄瓜短剧未返回剧集信息");
   const dm=DESC_RE.exec(body),payload=parsePayload(body)[alias];let cover=payload?coverAddress(h,payload.cover,payload.fallback):"";
   if(!cover){const image=cardImage(body);if(image.cover)cover=h+image.cover;}
-  return{title,cover,desc:dm?htmlText(dm[1]):"",chapters:chaptersFor(body,alias)};
+  return{title,cover,desc:dm?htmlText(dm[1]):"",chapters:chaptersFor(body,alias,payload?payload.episodes:0)};
 }
 export default {
   async home(){return{categories:CATEGORIES};},
