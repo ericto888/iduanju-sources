@@ -148,11 +148,23 @@ function chaptersFor(body,alias) {
   if(!out.length)out.push({id:alias+"/1",name:"第1集"});
   return out;
 }
+function unescapePlayUrl(raw) {
+  let value = String(raw)
+    .replace(/\\\\u002[Ff]/g, "/")
+    .replace(/\\\\u0026/g, "&")
+    .replace(/\\\\\\//g, "/");
+  try {
+    value = JSON.parse('"' + value.replace(/"/g, '\\\\"') + '"');
+  } catch (e) {}
+  return value;
+}
 function parsePlayUrl(body) {
-  const s=PLAY_URL_RE.exec(body);
-  if(s&&/^https?:/i.test(s[1]))return s[1].replace(/\\\\u002[Ff]/g,"/").replace(/\\\\u0026/g,"&").replace(/\\\\\\//g,"/");
-  const e=ESCAPED_M3U8_RE.exec(body);if(e)return e[0].replace(/\\\\u002[Ff]/g,"/").replace(/\\\\\\//g,"/");
-  const g=M3U8_RE.exec(body);return g?g[0]:"";
+  const sourceMatch = PLAY_URL_RE.exec(body);
+  if (sourceMatch && /^https?:/i.test(sourceMatch[1])) return unescapePlayUrl(sourceMatch[1]);
+  const escapedMatch = ESCAPED_M3U8_RE.exec(body);
+  if (escapedMatch) return unescapePlayUrl(escapedMatch[0]);
+  const genericMatch = M3U8_RE.exec(body);
+  return genericMatch ? unescapePlayUrl(genericMatch[0]) : "";
 }
 async function listCategory(page,category) {
   const p=Math.max(1,Math.floor(Number(page)||1));if(p>1)return{items:[],hasMore:false};
