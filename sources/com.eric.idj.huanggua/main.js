@@ -141,14 +141,26 @@ function parseCards(body,siteHost) {
   }
   return items;
 }
+function extractTotalEpisodes(body,payloadEpisodes) {
+  const text=String(body||"");
+  const patterns=[
+    /共\\s*(\\d+)\\s*集/i,
+    /全\\s*(\\d+)\\s*集/i,
+    /更新至\\s*(\\d+)\\s*集/i,
+    /(\\d+)\\s*集全/i
+  ];
+  let total=Math.max(0,Math.min(9999,Math.floor(Number(payloadEpisodes)||0)));
+  for(const re of patterns){const m=re.exec(text);if(m)total=Math.max(total,Math.min(9999,Number(m[1])||0));}
+  return total;
+}
 function chaptersFor(body,alias,totalEpisodes) {
-  const re=new RegExp("/play/"+alias+"/(\\d+)","g"),seen={},out=[];let m;
+  const re=new RegExp("/play/"+alias+"/(\\\\d+)","g"),seen={},out=[];let m;
   while((m=re.exec(body))!==null){const n=Number(m[1]);if(n>0&&n<=9999)seen[n]=true;}
   const total=Math.max(0,Math.min(9999,Math.floor(Number(totalEpisodes)||0)));
-  // 详情页结构化数据提供总集数时，补齐页面 HTML 中未直接输出的选集链接。
+  // 使用详情页明确公布的总集数补齐没有直接输出链接的集数。
   for(let n=1;n<=total;n++)seen[n]=true;
-  for(const n of Object.keys(seen).map(Number).sort((a,b)=>a-b))out.push({id:alias+"/"+n,name:"第"+n+"集"});
-  if(!out.length)out.push({id:alias+"/1",name:"第1集"});
+  for(const n of Object.keys(seen).map(Number).sort((a,b)=>a-b))out.push({id:alias+"/"+n,name:String(n)});
+  if(!out.length)out.push({id:alias+"/1",name:"1"});
   return out;
 }
 function unescapePlayUrl(raw) {
@@ -184,7 +196,7 @@ async function getDetail(alias) {
   if(!title)fail("E_PARSE","黄瓜短剧未返回剧集信息");
   const dm=DESC_RE.exec(body),payload=parsePayload(body)[alias];let cover=payload?coverAddress(h,payload.cover,payload.fallback):"";
   if(!cover){const image=cardImage(body);if(image.cover)cover=h+image.cover;}
-  return{title,cover,desc:dm?htmlText(dm[1]):"",chapters:chaptersFor(body,alias,payload?payload.episodes:0)};
+  return{title,cover,desc:dm?htmlText(dm[1]):"",chapters:chaptersFor(body,alias,extractTotalEpisodes(body,payload?payload.episodes:0))};
 }
 export default {
   async home(){return{categories:CATEGORIES};},
