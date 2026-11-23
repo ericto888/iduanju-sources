@@ -144,17 +144,17 @@ function parseCards(body,siteHost) {
 function extractTotalEpisodes(body,payloadEpisodes) {
   const text=String(body||"");
   const patterns=[
-    /共\\s*(\\d+)\\s*集/i,
-    /全\\s*(\\d+)\\s*集/i,
-    /更新至\\s*(\\d+)\\s*集/i,
-    /(\\d+)\\s*集全/i
+    /共\s*(\d+)\s*集/i,
+    /全\s*(\d+)\s*集/i,
+    /更新至\s*(\d+)\s*集/i,
+    /(\d+)\s*集全/i
   ];
   let total=Math.max(0,Math.min(9999,Math.floor(Number(payloadEpisodes)||0)));
   for(const re of patterns){const m=re.exec(text);if(m)total=Math.max(total,Math.min(9999,Number(m[1])||0));}
   return total;
 }
 function chaptersFor(body,alias,totalEpisodes) {
-  const re=new RegExp("/play/"+alias+"/(\\\\d+)","g"),seen={},out=[];let m;
+  const re=new RegExp("/play/"+alias+"/(\\d+)","g"),seen={},out=[];let m;
   while((m=re.exec(body))!==null){const n=Number(m[1]);if(n>0&&n<=9999)seen[n]=true;}
   const total=Math.max(0,Math.min(9999,Math.floor(Number(totalEpisodes)||0)));
   // 使用详情页明确公布的总集数补齐没有直接输出链接的集数。
