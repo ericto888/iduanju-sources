@@ -152,7 +152,7 @@ function unescapePlayUrl(raw) {
   let value = String(raw)
     .replace(/\\\\u002[Ff]/g, "/")
     .replace(/\\\\u0026/g, "&")
-    .replace(/\\\\\\//g, "/");
+    .split("\\/").join("/");
   try {
     value = JSON.parse('"' + value.replace(/"/g, '\\\\"') + '"');
   } catch (e) {}
