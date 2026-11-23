@@ -9,7 +9,7 @@
   },
   "description": "由 GuoApp 黄瓜短剧 1.0.2 适配为 iDuanJu idj1 插件。支持分类、详情、多集播放、最新地址发现、VPN 下刷新线路和 30 分钟线路缓存；站点当前没有可用搜索接口。",
   "type": "shortdrama",
-  "adult": false,
+  "adult": true,
   "minAppVersion": "1.5",
   "entry": "main.js",
   "permissions": {
