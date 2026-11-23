@@ -43,7 +43,7 @@
     ],
     "storage": true
   },
-  "capabilities": [
+  "update": {\n    "url": "https://raw.githubusercontent.com/ericto888/iduanju-sources/main/sources/com.eric.idj.huanggua/manifest.json",\n    "channel": "stable"\n  },\n  "capabilities": [
     "home",
     "category",
     "detail",
