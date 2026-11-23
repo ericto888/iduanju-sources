@@ -193,6 +193,6 @@ export default {
     const h=await getHost(),url=h+"/play/"+encodeURIComponent(p[0])+"/"+Number(p[1]);
     const body=await pageWithRefresh(url,url,b=>!!parsePlayUrl(b)),media=parsePlayUrl(body);
     if(!media)fail("E_PARSE","黄瓜短剧没有返回播放地址");
-    return{streams:[{name:"默认",url:media,format:/\\.m3u8(?:[?#]|$)/i.test(media)?"hls":"mp4",headers:{Referer:url}}]};
+    return{streams:[{name:"默认",url:media,format:/\.m3u8(?:[?#]|$)/i.test(media)?"hls":"mp4",headers:{Referer:url}}]};
   }
 };
