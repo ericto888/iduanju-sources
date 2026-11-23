@@ -189,10 +189,24 @@ export default {
   async search({keyword}){if(!str(keyword))return{items:[],hasMore:false};fail("E_UNSUPPORTED","黄瓜短剧当前站点没有可用的搜索接口");},
   async detail({id}){const r=await getDetail(id);return{title:r.title,cover:r.cover,desc:r.desc,lines:[{name:"默认线路",episodes:r.chapters}]};},
   async play({episodeId}){
-    const p=str(episodeId).split("/");if(p.length!==2||!/^[a-zA-Z0-9-]+$/.test(p[0])||!/^\d+$/.test(p[1]))fail("E_PARSE","黄瓜短剧集 ID 无效");
-    const h=await getHost(),url=h+"/play/"+encodeURIComponent(p[0])+"/"+Number(p[1]);
-    const body=await pageWithRefresh(url,url,b=>!!parsePlayUrl(b)),media=parsePlayUrl(body);
-    if(!media)fail("E_PARSE","黄瓜短剧没有返回播放地址");
-    return{streams:[{name:"默认",url:media,format:/\.m3u8(?:[?#]|$)/i.test(media)?"hls":"mp4",headers:{Referer:url}}]};
+    let stage="validate episode";
+    try {
+      const p=str(episodeId).split("/");
+      if(p.length!==2||!/^[a-zA-Z0-9-]+$/.test(p[0])||!/^\d+$/.test(p[1]))fail("E_PARSE","黄瓜短剧集 ID 无效");
+      stage="resolve host";
+      const h=await getHost(),url=h+"/play/"+encodeURIComponent(p[0])+"/"+Number(p[1]);
+      stage="fetch play page";
+      const body=await pageWithRefresh(url,url,b=>!!parsePlayUrl(b));
+      stage="parse media URL";
+      const media=parsePlayUrl(body);
+      if(!media)fail("E_PARSE","黄瓜短剧没有返回播放地址");
+      stage="build stream";
+      return{streams:[{name:"默认",url:media,format:/\.m3u8(?:[?#]|$)/i.test(media)?"hls":"mp4",headers:{Referer:url}}]};
+    } catch(e) {
+      const message=String(e&&e.message||e);
+      const stack=String(e&&e.stack||"").slice(0,1800);
+      host.log("[黄瓜播放诊断] stage="+stage+" error="+message+" stack="+stack);
+      throw e;
+    }
   }
 };
