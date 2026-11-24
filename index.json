@@ -31,6 +31,17 @@
       "description": "黄瓜短剧：分类、详情、按详情页总集数显示数字选集（1、2、3…）、多集播放及最新地址发现。",
       "category": "shortdrama",
       "author": "iDuanJu 社区移植"
+    },
+    {
+      "id": "com.eric.idj.xvideos",
+      "name": "XVideos",
+      "manifest": "https://raw.githubusercontent.com/ericto888/iduanju-sources/main/sources/com.eric.idj.xvideos/manifest.json",
+      "type": "video",
+      "adult": true,
+      "version": "1.0.0",
+      "description": "XVideos 长视频：HLS 优先、MP4 备用、合并重复直链；接管内置 XVideos 入口。",
+      "category": "video",
+      "author": "iDuanJu 社区移植"
     }
   ]
 }
