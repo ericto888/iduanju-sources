@@ -2,12 +2,12 @@
   "schema": 1,
   "id": "com.eric.idj.xvideos",
   "name": "XVideos",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "author": {
     "name": "iDuanJu 社区移植",
     "contact": "https://github.com/ericto888/iduanju-sources"
   },
-  "description": "XVideos 长视频站插件。修复多清晰度线路解析与签名 URL 保留；显示实际解析到的线路名称和数量。",
+  "description": "XVideos 长视频站插件。新增分类浏览，分类列表排在上月最佳之后；保留多清晰度线路解析与签名 URL。",
   "type": "video",
   "adult": true,
   "minAppVersion": "1.5",
