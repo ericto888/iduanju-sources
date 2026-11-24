@@ -38,8 +38,8 @@
       "manifest": "https://raw.githubusercontent.com/ericto888/iduanju-sources/main/sources/com.eric.idj.xvideos/manifest.json",
       "type": "video",
       "adult": true,
-      "version": "1.0.0",
-      "description": "XVideos 长视频：最新、上月最佳、搜索、详情及 HLS/MP4 播放。",
+      "version": "1.0.1",
+      "description": "XVideos 长视频：最新、上月最佳、搜索、详情及 HLS/MP4 播放；详情 ID 兼容性修复。",
       "category": "video",
       "author": "iDuanJu 社区移植"
     }
