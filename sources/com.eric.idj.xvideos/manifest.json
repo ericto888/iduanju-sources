@@ -2,12 +2,12 @@
   "schema": 1,
   "id": "com.eric.idj.xvideos",
   "name": "XVideos",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "author": {
     "name": "iDuanJu 社区移植",
     "contact": "https://github.com/ericto888/iduanju-sources"
   },
-  "description": "XVideos 长视频站插件。增强播放器调用结构诊断，输出脱敏上下文以定位播放地址提取失败，不记录完整播放链接。",
+  "description": "XVideos 长视频站插件。参照 guoapp-sources 增强播放器方法、配置字段、mediaDefinitions、sources 与旧版 flv_url 解析，并过滤非媒体页面路径。",
   "type": "video",
   "adult": true,
   "minAppVersion": "1.5",
