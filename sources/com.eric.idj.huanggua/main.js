@@ -164,10 +164,10 @@ function cardImage(segment) {
     const attrs={};let m;IMG_ATTR_RE.lastIndex=0;
     while((m=IMG_ATTR_RE.exec(tag))!==null)attrs[m[1].toLowerCase()]=str(m[2]);
     for(const k of ["data-src","data-original","data-lazy-src","src","srcset"]){
-      let raw=str(attrs[k]);if(k==="srcset")raw=raw.split(",")[0].trim().split(/\\s+/)[0];
+      let raw=str(attrs[k]);if(k==="srcset")raw=raw.split(",")[0].trim().split(/\s+/)[0];
       if(!raw||/^data:/i.test(raw))continue;
       if(COVER_PATH_RE.test(raw))return{cover:COVER_PATH_RE.exec(raw)[1],title:attrs.alt||""};
-      if(/^https?:\\/\\//i.test(raw)||raw.startsWith("/"))return{cover:raw,title:attrs.alt||""};
+      if(/^https?:\/\//i.test(raw)||raw.startsWith("/"))return{cover:raw,title:attrs.alt||""};
     }
   }
   return{cover:"",title:""};
