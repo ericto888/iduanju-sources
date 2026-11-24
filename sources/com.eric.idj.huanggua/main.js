@@ -395,6 +395,9 @@ function resolveCategoryId(value) {
     raw=raw.id??raw.categoryId??raw.category_id??raw.key??raw.value??raw.category??raw.name??raw.title??"";
   }
   const input=str(raw);
+  // 宿主的“推荐”入口可能以空 ID 调用 category；黄瓜的推荐列表对应 /browse。
+  // 仅将空值映射为 browse，未知的非空分类仍保持严格校验。
+  if(!input)return "browse";
   const normalized=input.toLowerCase().replace(/[\\s_-]+/g,"");
   const aliases={
     yuanchuang:["yuanchuang","原创短剧","原创"],
