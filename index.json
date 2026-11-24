@@ -3,10 +3,22 @@
   "name": "iDuanJu 站源商店",
   "updatedAt": "2026-11-24",
   "categories": [
-    { "id": "video", "name": "长视频" },
-    { "id": "shortdrama", "name": "短剧" },
-    { "id": "comic", "name": "漫画" },
-    { "id": "live", "name": "直播" }
+    {
+      "id": "video",
+      "name": "长视频"
+    },
+    {
+      "id": "shortdrama",
+      "name": "短剧"
+    },
+    {
+      "id": "comic",
+      "name": "漫画"
+    },
+    {
+      "id": "live",
+      "name": "直播"
+    }
   ],
   "plugins": [
     {
@@ -15,8 +27,8 @@
       "manifest": "https://raw.githubusercontent.com/ericto888/iduanju-sources/main/sources/com.eric.idj.huanggua/manifest.json",
       "type": "shortdrama",
       "adult": true,
-      "version": "1.2.5",
-      "description": "黄瓜短剧：增加搜索响应诊断日志，记录页面结构、链接样本、卡片 class 与 DOM 解析数量；不输出完整页面内容。",
+      "version": "1.2.6",
+      "description": "黄瓜短剧：修复搜索结果 /video/数字ID/ 详情链接识别，兼容剧集详情页与封面提取；保留旧路径兼容。",
       "category": "shortdrama",
       "author": "iDuanJu 社区移植"
     },
