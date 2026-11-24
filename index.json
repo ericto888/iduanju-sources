@@ -27,8 +27,8 @@
       "manifest": "https://raw.githubusercontent.com/ericto888/iduanju-sources/main/sources/com.eric.idj.huanggua/manifest.json",
       "type": "shortdrama",
       "adult": true,
-      "version": "1.4.2",
-      "description": "黄瓜短剧：修复推荐入口空分类 ID，并确保首屏正确开放后续分页加载。",
+      "version": "1.4.3",
+      "description": "黄瓜短剧：修复全部浏览与分类分页请求，优先使用站点确认的规范分页地址，并废弃旧分页缓存。",
       "category": "shortdrama",
       "author": "iDuanJu 社区移植"
     },
