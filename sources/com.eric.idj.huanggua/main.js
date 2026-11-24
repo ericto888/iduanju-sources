@@ -5,7 +5,7 @@ const CACHE_KEY = "huanggua.latestHost.v1";
 const CACHE_TTL = 30 * 60 * 1000;
 const SEED_HOSTS = ["https://hgdj17.com","https://hgdjb15.com","https://hgdj1.app","https://abc.ywwegfkd.cc","https://qwer.ywwegfkd.cc","https://xyz.ywwegfkd.cc","https://mkqjue.eyrkjyudz.cc","https://porncz.eyrkjyudz.cc","https://rixgqa.eyrkjyudz.cc","https://porncz.hzeqbmes.cc"];
 const ALLOWED_SUFFIXES = ["hgdju.com","hgdja1.com","hgdj1.app","hgdj17.com","hgdjb15.com","ywwegfkd.cc","eyrkjyudz.cc","hzeqbmes.cc"];
-const CATEGORIES = [{id:"yuanchuang",name:"原创短剧"},{id:"aiduanju",name:"AI短剧"},{id:"mogai",name:"AI魔改"},{id:"manju",name:"AI漫剧"},{id:"zhenren",name:"AI真人短剧"},{id:"browse",name:"全部剧集"}];
+const CATEGORIES = [{id:"yuanchuang",name:"原创短剧"},{id:"aiduanju",name:"AI短剧"},{id:"mogai",name:"魔改"},{id:"manju",name:"漫剧"},{id:"zhenren",name:"真人"},{id:"browse",name:"推荐"}];
 const CATEGORY_IDS = ["yuanchuang","aiduanju","mogai","manju","zhenren","browse"];
 const CARD_SPLIT = '<article data-xpch="card-drama"';
 const ALIAS_RE = /href=["\']\/drama\/([a-zA-Z0-9_-]+)["\']/i;
@@ -379,13 +379,12 @@ function parsePlayUrl(body) {
 const CATEGORY_CACHE_PREFIX = "huanggua.category.v2.";
 const CATEGORY_CACHE_TTL = 10 * 60 * 1000;
 const CATEGORY_PATHS = {
-  "": ["/browse?line=all", "/browse?line=", "/browse"],
-  aiduanju: ["/ai-duanju/", "/aiduanju/", "/aiduanju"],
-  manju: ["/ai-manju/", "/manju/", "/manju"],
-  mogai: ["/ai-mogai/", "/mogai/", "/mogai"],
-  zhenren: ["/zhenren/", "/zhenren"],
-  yuanchuang: ["/yuanchuang/", "/yuanchuang"],
-  browse: ["/browse?line=all", "/browse?line=", "/browse"]
+  yuanchuang: ["/browse?line=yuanchuang"],
+  aiduanju: ["/browse?line=aiduanju"],
+  mogai: ["/browse?line=mogai"],
+  manju: ["/browse?line=manju"],
+  zhenren: ["/browse?line=zhenren"],
+  browse: ["/browse"]
 };
 
 function cacheHostKey(h) {
@@ -446,21 +445,14 @@ function searchResultPage(body) {
   return m?Number(m[1])||0:0;
 }
 function pagePaths(category,page,links) {
-  const bases=CATEGORY_PATHS[str(category)]||[];
+  const id=str(category),bases=CATEGORY_PATHS[id]||[];
+  // 黄瓜短剧分类页真实分页格式：/browse/page-2?line=分类ID；
+  // 推荐（全部浏览）不带 line 参数：/browse/page-2。
+  if(page===1)return bases.slice();
   if(links&&links[page])return [links[page]];
   if(page===2&&links&&links.next)return [links.next];
-  const out=[];
-  for(const base of bases) {
-    if(page===1){out.push(base);continue;}
-    if(base.includes("?")) {
-      out.push(base+"&page="+page,base+"&p="+page);
-      continue;
-    }
-    const root=base.endsWith("/")?base:base+"/";
-    // 兼容当前站点的 /ai-duanju/41/ 与旧版 /aiduanju/page-2 两类路由。
-    out.push(root+page+"/",root+"page-"+page,root+"page-"+page+"/");
-  }
-  return Array.from(new Set(out));
+  const suffix=id==="browse"?"":("?line="+encodeURIComponent(id));
+  return ["/browse/page-"+page+suffix];
 }
 async function fetchCategoryPage(h,category,page) {
   const bases=CATEGORY_PATHS[str(category)]||[];
