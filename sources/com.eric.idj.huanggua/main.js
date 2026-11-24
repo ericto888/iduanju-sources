@@ -503,7 +503,11 @@ async function fetchCategoryPage(h,category,page) {
       if(items.length) {
         const nextLinks=paginationLinks(body,h);
         const numberedPages=Object.keys(nextLinks).filter(k=>k!=="next"&&Number(k)>0).map(Number);
-        const hasMore=!!nextLinks.next||numberedPages.some(n=>n>page)||(numberedPages.length===0&&items.length>=12);
+        // 首屏即使没有解析到分页锚点，也不能直接向宿主报告“没有下一页”；
+        // 否则客户端不会触发 page=2。后续页仍优先按官网分页链接判断，
+        // 没有分页锚点时以满页数量作为兜底，避免无休止请求空页。
+        const hasMore=!!nextLinks.next||numberedPages.some(n=>n>page)||
+          (page===1&&items.length>0)||(numberedPages.length===0&&items.length>=12);
         return {items,hasMore};
       }
       lastError=host.error("E_PARSE","该分页没有解析到剧集");
