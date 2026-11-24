@@ -365,54 +365,52 @@ function searchKeywordVariants(keyword) {
   if(chars.length>3)add(chars.slice(0,3).join(""));
   return out;
 }
+const SEARCH_HOST = "https://porncz.hzeqbmes.cc";
+
 async function searchDramas(keyword,page=1) {
   const q=str(keyword),p=Math.max(1,Math.floor(Number(page)||1));
   if(!q)return {items:[],page:p,hasMore:false};
+  // 搜索固定使用已实测可返回真实搜索结果的线路，不参与首页导航和动态域名轮询。
+  const h=SEARCH_HOST;
   const variants=searchKeywordVariants(q);
   let lastError=null;
   for(const term of variants) {
-    let h=await getHost(false,true);
     const encoded=encodeURIComponent(term),firstPath="/search/video/"+encoded+"/";
-    let firstBody="",links={};
-    if(p>1) {
-      try {
-        firstBody=await pageWithRefresh(h+firstPath,h+"/",(b,u)=>isSearchResponse(b,u));
-        links=paginationLinks(firstBody,h);
-      } catch(e) { lastError=e; }
-    }
-    if(p>1&&!firstBody) {
-      try {
-        h=await getHost(true,true);
-        firstBody=await pageWithRefresh(h+firstPath,h+"/",(b,u)=>isSearchResponse(b,u));
-        links=paginationLinks(firstBody,h);
-      } catch(e) { lastError=e;continue; }
-    }
-    const paths=p===1?[firstPath]:(links[p]?[links[p]]:(links.next?[links.next]:[]));
-    if(!paths.length) {
-      if(p>1)lastError=host.error("E_PARSE","搜索结果页面未提供有效的下一页链接");
-      continue;
-    }
-    for(const path of paths) {
-      try {
-        let url=/^https?:\/\//i.test(path)?path:h+path;
-        let body;
-        try {
-          body=await pageWithRefresh(url,h+"/",(b,u)=>isSearchResponse(b,u));
-        } catch(e) {
-          // 404/非搜索响应触发搜索专用线路刷新；验证条件是该域名的真实搜索页可用。
-          h=await getHost(true,true);
-          url=h+firstPath;
-          body=await pageWithRefresh(url,h+"/",(b,u)=>isSearchResponse(b,u));
+    try {
+      let firstBody="",links={};
+      if(p>1) {
+        const first=await getText(h+firstPath,h+"/",20000);
+        if(!isSearchResponse(first.body,first.url)) {
+          lastError=host.error("E_PARSE","固定搜索线路返回的不是有效搜索结果页");
+          continue;
         }
-        const items=parseCards(body,h);
-        if(items.length) {
-          const nextLinks=paginationLinks(body,h);
-          const hasMore=!!nextLinks.next||Object.keys(nextLinks).some(k=>k!=="next"&&Number(k)>p)||items.length>=10;
-          return {items,page:p,hasMore};
+        firstBody=first.body;
+        links=paginationLinks(firstBody,h);
+      }
+      let target=firstPath;
+      if(p>1) {
+        if(links[p])target=links[p];
+        else if(links.next)target=links.next;
+        else {
+          lastError=host.error("E_PARSE","搜索结果页面未提供有效的下一页链接");
+          continue;
         }
-        lastError=host.error("E_PARSE","搜索结果页面未解析到剧集");
-      } catch(e) { lastError=e; }
-    }
+      }
+      const result=p>1&&target===firstPath
+        ? {body:firstBody,url:h+firstPath}
+        : await getText(/^https?:\/\//i.test(target)?target:h+target,h+"/",20000);
+      if(!isSearchResponse(result.body,result.url)) {
+        lastError=host.error("E_PARSE","固定搜索线路返回的不是有效搜索结果页");
+        continue;
+      }
+      const items=parseCards(result.body,h);
+      if(items.length) {
+        const nextLinks=paginationLinks(result.body,h);
+        const hasMore=!!nextLinks.next||Object.keys(nextLinks).some(k=>k!=="next"&&Number(k)>p)||items.length>=10;
+        return {items,page:p,hasMore};
+      }
+      lastError=host.error("E_PARSE","搜索结果页面未解析到剧集");
+    } catch(e) { lastError=e; }
   }
   throw lastError||host.error("E_NOT_FOUND","黄瓜短剧没有找到匹配的搜索结果");
 }
