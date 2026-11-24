@@ -153,12 +153,11 @@ function extractTotalEpisodes(body,payloadEpisodes) {
   for(const re of patterns){const m=re.exec(text);if(m)total=Math.max(total,Math.min(9999,Number(m[1])||0));}
   return total;
 }
-function chaptersFor(body,alias,totalEpisodes) {
+function chaptersFor(body,alias) {
+  // 与上游 GuoApp 保持一致：只采用详情页实际提供的播放链接。
+  // total_episode_count / 文案中的总集数可能滞后或错误，不能据此虚构可播放集数。
   const re=new RegExp("/play/"+alias+"/(\\d+)","g"),seen={},out=[];let m;
   while((m=re.exec(body))!==null){const n=Number(m[1]);if(n>0&&n<=9999)seen[n]=true;}
-  const total=Math.max(0,Math.min(9999,Math.floor(Number(totalEpisodes)||0)));
-  // 使用详情页明确公布的总集数补齐没有直接输出链接的集数。
-  for(let n=1;n<=total;n++)seen[n]=true;
   for(const n of Object.keys(seen).map(Number).sort((a,b)=>a-b))out.push({id:alias+"/"+n,name:String(n)});
   if(!out.length)out.push({id:alias+"/1",name:"1"});
   return out;
@@ -228,7 +227,7 @@ async function getDetail(alias) {
   if(!title)fail("E_PARSE","黄瓜短剧未返回剧集信息");
   const dm=DESC_RE.exec(body),payload=parsePayload(body)[alias];let cover=payload?coverAddress(h,payload.cover,payload.fallback):"";
   if(!cover){const image=cardImage(body);if(image.cover)cover=h+image.cover;}
-  return{title,cover,desc:dm?htmlText(dm[1]):"",chapters:chaptersFor(body,alias,extractTotalEpisodes(body,payload?payload.episodes:0))};
+  return{title,cover,desc:dm?htmlText(dm[1]):"",chapters:chaptersFor(body,alias)};
 }
 export default {
   async home(){return{categories:CATEGORIES.filter(c=>str(c.id)!==""&&str(c.name)!=="推荐")};},
