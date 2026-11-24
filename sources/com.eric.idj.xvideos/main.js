@@ -78,7 +78,7 @@ function playerCall(html, fn) {
   return "";
 }
 function jsonFields(html, names) {
-  const re = new RegExp('["\\']?(?:' + names.join("|") + ')["\\']?\\s*:\\s*["\\']([^"\\']+)["\\']', "gi");
+  const re = new RegExp("[\\"']?(?:" + names.join("|") + ")[\\"']?\\s*:\\s*[\\"']([^\\"']+)[\\"']", "gi");
   const out = []; let m; while ((m = re.exec(html)) !== null) out.push(m[1]); return out;
 }
 function extractStreams(html, pageURL) {
