@@ -387,6 +387,29 @@ const CATEGORY_PATHS = {
   browse: ["/browse"]
 };
 
+// 不同宿主版本传入分类参数的字段可能不同：优先使用规范 id，
+// 同时兼容 categoryId/category/key/name 及直接传入分类对象的情况。
+function resolveCategoryId(value) {
+  let raw=value;
+  if(raw&&typeof raw==="object"&&!Array.isArray(raw)) {
+    raw=raw.id??raw.categoryId??raw.category_id??raw.key??raw.value??raw.category??raw.name??raw.title??"";
+  }
+  const input=str(raw);
+  const normalized=input.toLowerCase().replace(/[\\s_-]+/g,"");
+  const aliases={
+    yuanchuang:["yuanchuang","原创短剧","原创"],
+    aiduanju:["aiduanju","ai短剧","ai"],
+    mogai:["mogai","魔改"],
+    manju:["manju","漫剧"],
+    zhenren:["zhenren","真人","真人短剧"],
+    browse:["browse","recommend","recommendation","推荐","全部","全部短剧","全部分类"]
+  };
+  for(const id of Object.keys(aliases)) {
+    if(aliases[id].some(alias=>alias.toLowerCase().replace(/[\\s_-]+/g,"")===normalized))return id;
+  }
+  return "";
+}
+
 function cacheHostKey(h) {
   return str(h).replace(/^https?:\/\//i,"").replace(/[^a-zA-Z0-9.-]/g,"_").toLowerCase();
 }
@@ -485,9 +508,13 @@ async function fetchCategoryPage(h,category,page) {
   }
   throw lastError||host.error("E_PARSE","黄瓜短剧分页地址不可用");
 }
-async function listCategory(page,category) {
+async function listCategory(page,categoryValue) {
   const p=Math.max(1,Math.floor(Number(page)||1));
-  if(!CATEGORY_IDS.includes(str(category)))fail("E_PARSE","黄瓜短剧分类无效");
+  const category=resolveCategoryId(categoryValue);
+  if(!category) {
+    try { host.log("[黄瓜分类参数] invalid="+JSON.stringify(categoryValue)); } catch(e) {}
+    fail("E_PARSE","黄瓜短剧分类参数无效（收到："+str(categoryValue&&typeof categoryValue==="object"?(categoryValue.id??categoryValue.categoryId??categoryValue.name??JSON.stringify(categoryValue)):categoryValue||"空值")+"）");
+  }
   const h=await getHost(),cached=readCategoryCache(h,category,p);
   if(cached&&Date.now()-cached.savedAt<CATEGORY_CACHE_TTL) {
     return {items:cached.items,hasMore:cached.hasMore};
@@ -717,7 +744,13 @@ async function getDetail(alias) {
 }
 export default {
   async home(){return{categories:CATEGORIES.filter(c=>str(c.id)!==""&&str(c.name)!=="推荐")};},
-  async category({id="",page=1}){const r=await listCategory(page,id);return{items:r.items,page:Math.max(1,Number(page)||1),hasMore:r.hasMore};},
+  async category(args={}) {
+    const input=args&&typeof args==="object"?args:{id:args};
+    const page=input.page??1;
+    const categoryValue=input.id??input.categoryId??input.category_id??input.key??input.value??input.category??input.name??input.title??"";
+    const r=await listCategory(page,categoryValue);
+    return {items:r.items,page:Math.max(1,Number(page)||1),hasMore:r.hasMore};
+  },
   async search({keyword,page=1}){return await searchDramas(keyword,page);},
   async detail({id}){const r=await getDetail(id);return{title:r.title,cover:r.cover,desc:r.desc,lines:[{name:"默认线路",episodes:r.chapters}]};},
   async play({episodeId}){

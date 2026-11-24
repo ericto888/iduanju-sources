@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "name": "iDuanJu 站源商店",
-  "updatedAt": "2026-11-24",
+  "updatedAt": "2026-11-25",
   "categories": [
     {
       "id": "video",
@@ -27,8 +27,8 @@
       "manifest": "https://raw.githubusercontent.com/ericto888/iduanju-sources/main/sources/com.eric.idj.huanggua/manifest.json",
       "type": "shortdrama",
       "adult": true,
-      "version": "1.3.9",
-      "description": "黄瓜短剧：按官网真实分类入口映射，修复分类页连续分页加载。",
+      "version": "1.4.0",
+      "description": "黄瓜短剧：兼容不同客户端分类参数传递方式，修复分类无效，并保留真实分类及分页。",
       "category": "shortdrama",
       "author": "iDuanJu 社区移植"
     },
