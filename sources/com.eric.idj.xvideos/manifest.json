@@ -2,12 +2,12 @@
   "schema": 1,
   "id": "com.eric.idj.xvideos",
   "name": "XVideos",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "author": {
     "name": "iDuanJu 社区移植",
     "contact": "https://github.com/ericto888/iduanju-sources"
   },
-  "description": "XVideos 长视频站源插件。增强新版播放器清晰度提取，兼容 html5player 多种调用格式及 mediaDefinitions 清晰度列表；按 1080P、720P、480P 展示，避免枚举无关 MP4 直链。",
+  "description": "XVideos 长视频站源插件。增加播放页播放器结构诊断信息，帮助定位新版页面播放地址提取失败；诊断仅输出标记计数，不记录视频地址或完整页面。",
   "type": "video",
   "adult": true,
   "minAppVersion": "1.5",
