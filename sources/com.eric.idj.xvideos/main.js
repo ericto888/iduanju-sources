@@ -69,7 +69,38 @@ function videoPath(id){
 }
 function playerString(raw){let v=cleanText(raw).trim().replace(/\\\//g,"/").replace(/\\u0026/gi,"&").replace(/\\x26/gi,"&").replace(/\\'/g,"'").replace(/\\"/g,'"').replace(/\\\\/g,"\\");return v.replace(/\\u([0-9a-f]{4})/gi,(_,h)=>String.fromCharCode(parseInt(h,16)));}
 function playerCall(fn,html){const p="html5player\\s*\\.\\s*"+escRE(fn)+"\\s*\\(\\s*",patterns=[p+"'((?:\\\\.|[^'\\\\])*)'\\s*\\)",p+'"((?:\\\\.|[^"\\\\])*)"\\s*\\)'];for(const re of patterns){const m=groups(re,html);if(m&&m[1])return playerString(m[1]);}return"";}
-function mediaStreams(html,page){const out=[],seen=Object.create(null);function add(raw,name,format){let u=playerString(raw);if(u.startsWith("//"))u="https:"+u;if(!/^https?:\/\//i.test(u))return;try{u=decodeURIComponent(u.replace(/\+/g,"%20"));}catch(e){}if(seen[u])return;seen[u]=true;out.push({name,url:u,format,headers:{Referer:page,"User-Agent":UA}});}const h=playerCall("setVideoHLS",html);if(h)add(h,"自动 · HLS","hls");const hi=playerCall("setVideoUrlHigh",html);if(hi)add(hi,"高清 MP4","mp4");const lo=playerCall("setVideoUrlLow",html);if(lo)add(lo,"标清 MP4","mp4");const flv=[/(?:[?&])flv_url=([^&"'\s<>]+)/i,/flv_url\s*[:=]\s*'([^']*)'/i,/flv_url\s*[:=]\s*"([^"]*)"/i];for(const re of flv){const m=re.exec(html);if(m&&m[1]){let x=m[1].replace(/\+/g,"%20");try{x=decodeURIComponent(x);}catch(e){}add(x,"原画 · 直链","mp4");if(out.length)break;}}const fieldSets=[[/\b(?:hls|video_hls|hls_url|hlsUrl)\b\s*[:=]\s*["']([^"']+)["']/gi,"自动 · HLS","hls"],[/\b(?:flv_url|video_url|videoUrl|urlHigh|urlLow|contentUrl)\b\s*[:=]\s*["']([^"']+)["']/gi,"直链 · MP4","mp4"]];for(const [re,name,fmt] of fieldSets){let m;while((m=re.exec(html))!==null)add(m[1],name,fmt);}const normalized=String(html||"").replace(/\\\//g,"/"),rawRe=/(?:https?:)?\/\/[^"'\s<>]+?\.(?:m3u8|mp4)(?:\?[^"'\s<>]*)?/gi;let m;while((m=rawRe.exec(normalized))!==null){const u=m[0].startsWith("//")?"https:"+m[0]:m[0],hlsLike=/\.m3u8(?:\?|$)/i.test(u);add(u,hlsLike?"自动 · HLS":"直链 · MP4",hlsLike?"hls":"mp4");}return out;}
+function mediaStreams(html,page){
+ const out=[],seen=Object.create(null);
+ function add(raw,name,format){
+  let u=playerString(raw);
+  if(u.startsWith("//"))u="https:"+u;
+  if(!/^https?:\/\//i.test(u))return;
+  try{u=decodeURIComponent(u.replace(/\+/g,"%20"));}catch(e){}
+  if(seen[u])return;
+  seen[u]=true;
+  out.push({name,url:u,format,headers:{Referer:page,"User-Agent":UA}});
+ }
+ // XVideos 原生播放器按清晰度提供独立地址；不要扫描整页所有 mp4，
+ // 否则会把广告、备用 CDN 和重复转码地址都暴露成一堆“播放源”。
+ const superHigh=playerCall("setVideoUrlSuperHigh",html);
+ const high=playerCall("setVideoUrlHigh",html);
+ const low=playerCall("setVideoUrlLow",html);
+ if(superHigh)add(superHigh,"1080P","mp4");
+ if(high)add(high,superHigh?"720P":"720P","mp4");
+ if(low)add(low,"480P","mp4");
+ const hls=playerCall("setVideoHLS",html);
+ if(hls)add(hls,"自动（HLS）","hls");
+ // 兼容少数页面只提供 flv_url 的情况；仅作为兜底，不枚举页面里的任意 mp4 链接。
+ if(!out.length){
+  const m=/(?:[?&])flv_url=([^&"'\s<>]+)/i.exec(html)||/flv_url\s*[:=]\s*["']([^"']+)["']/i.exec(html);
+  if(m&&m[1]){
+   let u=m[1].replace(/\+/g,"%20");
+   try{u=decodeURIComponent(u);}catch(e){}
+   add(u,"默认清晰度","mp4");
+  }
+ }
+ return out;
+}
 async function loadDetail(id){const path=videoPath(id),r=await request(BASE+path,BASE+"/",30000),html=r.body,tm=groups(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)/i.source,html),title=playerCall("setVideoTitle",html)||(tm?cleanText(tm[1]):"");if(!title||!safeTitle(title))fail("E_NOT_FOUND","XVideos 视频不可用或未通过内容安全筛选");const cm=groups(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)/i.source,html),cover=playerCall("setThumbUrl169",html)||(cm?cm[1]:""),d=groups('"duration"\\s*:\\s*"PT(?:(\\d+)H)?(?:(\\d+)M)?(?:(\\d+)S)?"',html);let duration=0;if(d)duration=(Number(d[1])||0)*3600+(Number(d[2])||0)*60+(Number(d[3])||0);const tags=[],re=/<a[^>]*class="[^"]*is-keyword[^"]*"[^>]*>([^<]+)<\/a>/gi;let m;while((m=re.exec(html))!==null&&tags.length<16){const t=cleanText(m[1]);if(t&&safeTitle(t))tags.push(t);}return{title,cover,duration,page:r.url||BASE+path,path};}
 export default {
  async home(){return{categories:CATEGORIES};},
