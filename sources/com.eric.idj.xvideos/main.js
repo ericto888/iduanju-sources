@@ -64,7 +64,7 @@ function videoPath(id){
  v=v.split(/[?#]/,1)[0];
  if(/^video[.-]/i.test(v))v="/"+v;
  if(!v.startsWith("/"))v="/"+v;
- if(!/^\/video[.-][a-z0-9]+(?:\/[a-z0-9._~%+-]*)?\/?$/i.test(v))fail("E_PARSE","XVideos 视频 ID 无效："+v.slice(0,160));
+ if(!/^\/video[.-][a-z0-9]+(?:\/[a-z0-9._~%+-]*)*\/?$/i.test(v))fail("E_PARSE","XVideos 视频 ID 无效："+v.slice(0,160));
  return v;
 }
 function playerString(raw){let v=cleanText(raw).trim().replace(/\\\//g,"/").replace(/\\u0026/gi,"&").replace(/\\x26/gi,"&").replace(/\\'/g,"'").replace(/\\"/g,'"').replace(/\\\\/g,"\\");return v.replace(/\\u([0-9a-f]{4})/gi,(_,h)=>String.fromCharCode(parseInt(h,16)));}
