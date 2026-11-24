@@ -55,7 +55,7 @@ async function request(url,referer,timeout) {
 }
 async function getText(url,referer,timeout) {
   const r=await request(url,referer,timeout);
-  return {body:str(r.body),url:str(r.url)||url,headers:r.headers||{}};
+  return {body:str(r.body),url:str(r.url)||url,headers:r.headers||{},status:Number(r.status)||0};
 }
 function readCachedHost() {
   try {
@@ -73,7 +73,7 @@ async function validateHost(c,requireSearch) {
   for(const path of paths) {
     try {
       const p=await getText(c+path,c+"/",12000);
-      if(requireSearch ? isSearchResponse(p.body,p.url) : (p.body.includes("黄瓜短剧")&&p.body.includes("/drama/")))return true;
+      if(requireSearch ? parseSearchCardsDOM(p.body,c).length>0 : (p.body.includes("黄瓜短剧")&&p.body.includes("/drama/")))return true;
     } catch(e) {}
   }
   return false;
@@ -224,6 +224,45 @@ function parseCards(body,siteHost) {
   }
   return items;
 }
+
+function parseSearchCardsDOM(body,siteHost) {
+  // 参考 GuoApp 后加站源：解析 DOM 后按真实剧集链接提取，不以页面外壳特征判定搜索成功。
+  let root;
+  try { root=host.html.parse(String(body||"")); } catch(e) { return []; }
+  let anchors;
+  try { anchors=root.select("a[href*='/drama/']"); } catch(e) { return []; }
+  const payload=parsePayload(body),seen={},items=[];
+  for(const anchor of anchors) {
+    const href=htmlText(anchor.attr("href")).replace(/\\\//g,"/");
+    const idMatch=/\/drama\/([a-zA-Z0-9_-]+)(?:[/?#]|$)/i.exec(href);
+    const alias=idMatch?str(idMatch[1]):"";
+    if(!alias||seen[alias])continue;
+    const img=anchor.selectFirst("img");
+    const entry=payload[alias]||null;
+    const anchorText=anchor.text();
+    const title=str(
+      htmlText(anchor.attr("aria-label")).replace(/\s*详情\s*$/,"") ||
+      htmlText(anchor.attr("title")) ||
+      (img?htmlText(img.attr("alt")):"") ||
+      (entry&&entry.title) ||
+      anchorText
+    );
+    if(!title||title.length>100)continue;
+    let rawCover="";
+    if(img) rawCover=img.attr("data-src")||img.attr("data-original")||img.attr("data-lazy-src")||img.attr("src")||"";
+    let cover=rawCover?coverAddress(siteHost,rawCover,entry&&entry.fallback):"";
+    if(!cover&&entry)cover=coverAddress(siteHost,entry.cover,entry.fallback);
+    const ep=EPISODE_RE.exec(anchorText),heat=HEAT_RE.exec(anchorText);
+    const count=ep?Number(ep[1]):(entry?entry.episodes:0);
+    const item={id:alias,title:title,remarks:count>0?"更新至"+count+"集":""};
+    const views=heat?heat[1]+"热度":(entry&&entry.heat?entry.heat+"热度":"");
+    if(cover)item.cover=cover;
+    if(views)item.views=views;
+    seen[alias]=true;items.push(item);
+  }
+  return items;
+}
+
 function extractTotalEpisodes(body,payloadEpisodes) {
   const text=String(body||"");
   const patterns=[
@@ -411,10 +450,6 @@ async function searchDramas(keyword,page=1) {
       let firstBody="",links={};
       if(p>1) {
         const first=await getText(h+firstPath,h+"/",20000);
-        if(!isSearchResponse(first.body,first.url)) {
-          lastError=host.error("E_PARSE","固定搜索线路返回的不是有效搜索结果页");
-          continue;
-        }
         firstBody=first.body;
         links=paginationLinks(firstBody,h);
       }
@@ -430,11 +465,8 @@ async function searchDramas(keyword,page=1) {
       const result=p>1&&target===firstPath
         ? {body:firstBody,url:h+firstPath}
         : await getText(/^https?:\/\//i.test(target)?target:h+target,h+"/",20000);
-      if(!isSearchResponse(result.body,result.url)) {
-        lastError=host.error("E_PARSE","固定搜索线路返回的不是有效搜索结果页");
-        continue;
-      }
-      const items=parseCards(result.body,h);
+      let items=parseSearchCardsDOM(result.body,h);
+      if(items.length===0) items=parseCards(result.body,h);
       if(items.length) {
         const nextLinks=paginationLinks(result.body,h);
         const hasMore=!!nextLinks.next||Object.keys(nextLinks).some(k=>k!=="next"&&Number(k)>p)||items.length>=10;
