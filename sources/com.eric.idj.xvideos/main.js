@@ -16,7 +16,7 @@ function categoryPath(id,page){const p=Math.max(1,Math.floor(Number(page)||1));i
 async function request(url,referer,timeout){const r=await host.http.request({url,headers:{"User-Agent":UA,"Referer":referer||BASE+"/"},timeout:timeout||25000});if(!r||r.status<200||r.status>=300)fail(r&&r.status===404?"E_NOT_FOUND":"E_HTTP","XVideos 请求失败 HTTP "+(r?r.status:0)+"："+url);return{body:str(r.body),url:str(r.url)||url,headers:r.headers||{}};}
 function parseDuration(s){const t=cleanText(s);if(/^\d+:\d{2}(?::\d{2})?$/.test(t)){const a=t.split(":").map(Number);return a.length===3?a[0]*3600+a[1]*60+a[2]:a[0]*60+a[1];}let n=0,m;if((m=/(\d+)\s*h/i.exec(t)))n+=Number(m[1])*3600;if((m=/(\d+)\s*min/i.exec(t)))n+=Number(m[1])*60;if((m=/(\d+)\s*sec/i.exec(t)))n+=Number(m[1]);return n;}
 function absURL(u){let v=str(u).replace(/&amp;/gi,"&");if(!v||/^(?:data:|blob:|javascript:)/i.test(v))return"";if(v.startsWith("//"))return"https:"+v;if(v.startsWith("/"))return BASE+v;if(/^https?:\/\//i.test(v))return v;return"";}
-function attr(tag,name){const re=new RegExp("(?:^|\\\\s)"+name+"\\\\s*=\\\\s*([\\\"'])(.*?)\\\\1","i");const m=re.exec(tag);return m?m[2]:"";}
+function attr(tag,name){const re=new RegExp("(?:^|\\s)"+name+"\\s*=\\s*([\"'])(.*?)\\1","i");const m=re.exec(tag);return m?m[2]:"";}
 function parseList(html,page){
  const source=String(html||""),chunks=source.split(/thumb-block/i).slice(1),seen=Object.create(null),items=[];
  for(const raw of chunks){
