@@ -38,8 +38,8 @@
       "manifest": "https://raw.githubusercontent.com/ericto888/iduanju-sources/main/sources/com.eric.idj.xvideos/manifest.json",
       "type": "video",
       "adult": true,
-      "version": "1.0.6",
-      "description": "XVideos：新增播放页播放器结构诊断，辅助定位播放地址提取失败；不记录视频地址或完整页面。",
+      "version": "1.0.7",
+      "description": "XVideos：增强播放器调用结构诊断，输出脱敏上下文以定位播放地址提取失败。",
       "category": "video",
       "author": "iDuanJu 社区移植"
     }
