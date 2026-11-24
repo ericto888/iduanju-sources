@@ -8,7 +8,7 @@ const ALLOWED_SUFFIXES = ["hgdju.com","hgdja1.com","hgdj1.app","hgdj17.com","hgd
 const CATEGORIES = [{id:"aiduanju",name:"AI短剧"},{id:"manju",name:"AI漫剧"},{id:"mogai",name:"AI魔改"},{id:"zhenren",name:"真人短剧"},{id:"yuanchuang",name:"原创短剧"},{id:"browse",name:"全部"}];
 const CATEGORY_IDS = ["","aiduanju","manju","mogai","zhenren","yuanchuang","browse"];
 const CARD_SPLIT = '<article data-xpch="card-drama"';
-const ALIAS_RE = /href="\/drama\/([a-zA-Z0-9-]+)"/;
+const ALIAS_RE = /href=["\']\/drama\/([a-zA-Z0-9_-]+)["\']/i;
 const IMG_TAG_RE = /<img\b[^>]*>/gi;
 const IMG_ATTR_RE = /([a-zA-Z:_-]+)\s*=\s*"([^"]*)"/g;
 const COVER_PATH_RE = /(\/_img\/[A-Za-z0-9+/=]+\.(?:jpeg|jpg|png|webp))/;
@@ -135,12 +135,22 @@ function cardImage(segment) {
     for(const k of ["data-src","data-original","data-lazy-src","src","srcset"]){const found=COVER_PATH_RE.exec(attrs[k]||"");if(found)return{cover:found[1],title:attrs.alt||""};}}
   return{cover:"",title:""};
 }
+function hasDramaCards(body) {
+  return /<article\\b(?=[^>]*\\bdata-xpch=["']card-drama["'])/i.test(String(body||""));
+}
 function parseCards(body,siteHost) {
-  const segments=body.split(CARD_SPLIT);if(segments.length<2)return[];
+  // 不依赖 article 属性顺序，也不只认 img alt：黄瓜新版卡片把剧名放在 aria-label。
+  const blocks=String(body||"").match(/<article\\b(?=[^>]*\\bdata-xpch=["']card-drama["'])[^>]*>[\\s\\S]*?(?=<article\\b(?=[^>]*\\bdata-xpch=["']card-drama["'])|$)/gi)||[];
+  if(!blocks.length)return[];
   const payload=parsePayload(body),seen={},items=[];
-  for(const segment of segments.slice(1)){
+  for(const segment of blocks){
     const m=ALIAS_RE.exec(segment),alias=m?str(m[1]):"";if(!alias||seen[alias])continue;
-    const image=cardImage(segment),entry=payload[alias]||null,title=str(image.title||(entry&&entry.title)||"");if(!title)continue;
+    const image=cardImage(segment),entry=payload[alias]||null;
+    const aria=(/aria-label=["']([^"']+)["']/i.exec(segment)||[])[1]||"";
+    const titleAttr=(/(?:data-title|title)=["']([^"']+)["']/i.exec(segment)||[])[1]||"";
+    const heading=(/<(?:h[1-6]|span|div)[^>]*(?:class=["'][^"']*(?:title|name)[^"']*["'])?[^>]*>([\\s\\S]*?)<\\/(?:h[1-6]|span|div)>/i.exec(segment)||[])[1]||"";
+    const title=str(htmlText(aria).replace(/\\s*详情\\s*$/,"")||image.title||(entry&&entry.title)||htmlText(titleAttr)||htmlText(heading));
+    if(!title)continue;
     let cover=image.cover?siteHost+image.cover:"";if(!cover&&entry)cover=coverAddress(siteHost,entry.cover,entry.fallback);
     const ep=EPISODE_RE.exec(segment),heat=HEAT_RE.exec(segment),count=ep?Number(ep[1]):(entry?entry.episodes:0);
     const item={id:alias,title,remarks:count>0?"更新至"+count+"集":""};
@@ -271,7 +281,7 @@ async function fetchCategoryPage(h,category,page) {
     // 优先读取站点页面给出的真实分页链接；没有分页锚点时再尝试已知路由格式。
     for(const base of bases) {
       try {
-        const first=await pageWithRefresh(h+base,h+"/",b=>b.includes(CARD_SPLIT));
+        const first=await pageWithRefresh(h+base,h+"/",b=>hasDramaCards(b));
         links=paginationLinks(first,h);
         if(links[page]||links.next)break;
       } catch(e) {}
@@ -282,7 +292,7 @@ async function fetchCategoryPage(h,category,page) {
   for(const target of candidates) {
     try {
       const url=/^https?:\/\//i.test(target)?target:h+target;
-      const body=await pageWithRefresh(url,h+"/",b=>b.includes(CARD_SPLIT));
+      const body=await pageWithRefresh(url,h+"/",b=>hasDramaCards(b));
       const items=parseCards(body,h);
       if(items.length) {
         const nextLinks=paginationLinks(body,h);
@@ -317,7 +327,7 @@ async function searchDramas(keyword,page=1) {
   let links={},firstBody="";
   if(p>1) {
     try {
-      firstBody=await pageWithRefresh(h+"/search?q="+encoded,h+"/",b=>b.includes(CARD_SPLIT));
+      firstBody=await pageWithRefresh(h+"/search?q="+encoded,h+"/",b=>hasDramaCards(b));
       links=paginationLinks(firstBody,h);
     } catch(e) {}
   }
@@ -328,7 +338,7 @@ async function searchDramas(keyword,page=1) {
   for(const path of paths) {
     try {
       const url=/^https?:\/\//i.test(path)?path:h+path;
-      const body=firstBody&&p===1?firstBody:await pageWithRefresh(url,h+"/",b=>b.includes(CARD_SPLIT));
+      const body=firstBody&&p===1?firstBody:await pageWithRefresh(url,h+"/",b=>hasDramaCards(b));
       const items=parseCards(body,h);
       if(items.length) {
         const nextLinks=paginationLinks(body,h);
