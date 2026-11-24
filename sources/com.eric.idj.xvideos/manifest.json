@@ -1,0 +1,40 @@
+{
+  "schema": 1,
+  "id": "com.eric.idj.xvideos",
+  "name": "XVideos",
+  "version": "1.0.0",
+  "author": {
+    "name": "iDuanJu 社区移植",
+    "contact": "https://github.com/ericto888/iduanju-sources"
+  },
+  "description": "XVideos 长视频站源插件。支持最新、上月最佳、搜索、详情和 HLS/MP4 播放；接管内置 XVideos 入口，后续可从站源商店直接更新。",
+  "type": "video",
+  "adult": true,
+  "minAppVersion": "1.5",
+  "entry": "main.js",
+  "permissions": {
+    "http": [
+      "xvideos.com",
+      "*.xvideos.com"
+    ],
+    "media": [
+      "*.xvideos.com",
+      "*.xvideos-cdn.com",
+      "*.xhcdn.com"
+    ]
+  },
+  "update": {
+    "url": "https://raw.githubusercontent.com/ericto888/iduanju-sources/main/sources/com.eric.idj.xvideos/manifest.json",
+    "channel": "stable"
+  },
+  "capabilities": [
+    "home",
+    "category",
+    "search",
+    "detail",
+    "play"
+  ],
+  "overrides": [
+    "xvideos"
+  ]
+}
