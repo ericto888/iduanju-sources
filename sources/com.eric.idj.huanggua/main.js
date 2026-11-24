@@ -588,6 +588,10 @@ function detailDiagnostics(body,response,alias,requestedUrl) {
     pageTitle:htmlText(pageTitle).slice(0,160),h1:htmlText(h1).slice(0,160),
     blockedText:blocked,blockedExcerpt:(visible.match(/.{0,35}(?:已停止访问|停止访问|停止提供服务|页面不存在|内容不存在|已下架|无法访问).{0,55}/i)||[])[0]||"",
     playLinkCount:playLinks.length,playLinks:playLinks.slice(0,12),
+    embeddedMediaFound:!!parsePlayUrl(html),
+    embeddedMediaHost:(function(){const media=parsePlayUrl(html);const m=/^https?:\\/\\/([^/]+)/i.exec(media);return m?m[1]:"";})(),
+    videoTagCount:(html.match(/<video\\b/gi)||[]).length,
+    sourceUrlMarker:/source_url|m3u8|mp4/i.test(html),
     detailLinks:routeLinks.slice(0,8),bodyText:visible.slice(0,420)
   };
   try { host.log("[黄瓜详情诊断] "+JSON.stringify(info)); }
