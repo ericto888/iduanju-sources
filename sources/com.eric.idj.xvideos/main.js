@@ -72,43 +72,42 @@ function playerCall(fn,html){const p="html5player\\s*\\.\\s*"+escRE(fn)+"\\s*\\(
 function mediaDiagnostics(html){
  const s=String(html||"");
  const count=re=>((s.match(re)||[]).length);
+ const funcs=(s.match(/\bsetVideo[A-Za-z0-9_]*/gi)||[]).filter((v,i,a)=>a.indexOf(v)===i).slice(0,16);
+ const keys=(s.match(/\b(?:flv_url|video_url|videoUrl|hls_url|hlsUrl|video_hls|urlHigh|urlLow|contentUrl|mediaDefinitions|sources)\b/gi)||[]).map(v=>v.toLowerCase()).filter((v,i,a)=>a.indexOf(v)===i).slice(0,20);
  function context(re){
   const m=re.exec(s);if(!m)return "无";
-  const start=Math.max(0,m.index-100),end=Math.min(s.length,m.index+260);
-  return s.slice(start,end)
+  return s.slice(Math.max(0,m.index-100),Math.min(s.length,m.index+260))
    .replace(/https?:\/\/[^\s"'<>\\]+/gi,"[URL]")
    .replace(/([?&](?:token|key|hash|sig|signature|expires|auth|ip)=)[^&"'\s<>]*/gi,"$1[REDACTED]")
-   .replace(/[\r\n\t]+/g," ")
-   .replace(/\s{2,}/g," ")
-   .slice(0,360);
+   .replace(/[\r\n\t]+/g," ").replace(/\s{2,}/g," ").slice(0,300);
  }
  return [
+  "HTML长度="+s.length,
   "html5player:"+count(/html5player/gi),
-  "setVideoUrl:"+count(/setVideoUrl[A-Za-z0-9_]*/gi),
-  "setVideoHLS:"+count(/setVideoHLS/gi),
-  "mediaDefinitions:"+count(/mediaDefinitions/gi),
-  "videoUrl:"+count(/videoUrl/gi),
+  "setVideo方法:"+ (funcs.join("/")||"无"),
+  "媒体配置字段:"+ (keys.join("/")||"无"),
   "m3u8:"+count(/m3u8/gi),
   "mp4:"+count(/\.mp4/gi),
   "flv_url:"+count(/flv_url/gi),
-  "player:"+count(/player/gi),
-  "setVideoUrl上下文:"+context(/setVideoUrl[A-Za-z0-9_]*/i),
-  "videoUrl上下文:"+context(/videoUrl/i)
- ].join(", ");
+  "setVideoURL上下文:"+context(/setVideoURL/i),
+  "媒体配置上下文:"+context(/(?:video_url|videoUrl|hls_url|mediaDefinitions|sources)/i)
+ ].join("；");
 }
 function mediaStreams(html,page){
- const out=[],seen=Object.create(null);
- function add(raw,name,format){
-  let u=playerString(raw);
+ const source=String(html||""),out=[],seen=Object.create(null);
+ function add(raw,label,format){
+  let u=playerString(raw).trim().replace(/\\\//g,"/").replace(/\\u0026/gi,"&").replace(/&amp;/gi,"&");
   if(u.startsWith("//"))u="https:"+u;
   if(!/^https?:\/\//i.test(u))return;
+  if(/^(?:https?:\/\/)?(?:www\.)?xvideos\.com\/video[.-]/i.test(u))return;
   try{u=decodeURIComponent(u.replace(/\+/g,"%20"));}catch(e){}
-  if(seen[u])return;
+  if(!/^https?:\/\//i.test(u)||seen[u])return;
   seen[u]=true;
-  out.push({name,url:u,format,headers:{Referer:page,"User-Agent":UA}});
+  const inferred=/\.m3u8(?:[?#]|$)/i.test(u)?"hls":(/\.mp4(?:[?#]|$)/i.test(u)?"mp4":(format||"mp4"));
+  out.push({name:label||qualityName("",u),url:u,format:inferred,headers:{Referer:page,"User-Agent":UA}});
  }
  function qualityName(label,url){
-  const q=(String(label||"")+" "+String(url||"")).match(/(?:^|[^0-9])(1080|720|480|360)p?(?:[^0-9]|$)/i);
+  const q=(String(label||"")+" "+String(url||"")).match(/(?:^|[^0-9])(2160|1440|1080|720|480|360)p?(?:[^0-9]|$)/i);
   if(q)return q[1]+"P";
   const s=String(label||"").toLowerCase();
   if(s.includes("superhigh"))return "1080P";
@@ -116,38 +115,74 @@ function mediaStreams(html,page){
   if(s.includes("low"))return "480P";
   return "默认清晰度";
  }
- // 兼容播放器方法名变化、空格和转义字符串，不再扫描页面中无关的 MP4。
- const callRe=/(?:html5player\s*\.\s*)?(setVideoUrl([A-Za-z0-9_]*)|setVideoHLS)\s*\(\s*(['"])((?:\\.|[^\\])*?)\3\s*\)/gi;
- let m;
- while((m=callRe.exec(String(html||"")))!==null){
-  const method=m[1],suffix=m[2]||"",url=playerString(m[4]);
-  if(method.toLowerCase()==="setvideohls")add(url,"自动（HLS）","hls");
-  else add(url,qualityName(suffix,url),"mp4");
+ function addCall(raw,method){
+  const kind=String(method||"").toLowerCase();
+  const format=kind==="hls"?"hls":"mp4";
+  const label=kind==="hls"?"自动（HLS）":qualityName(method,raw);
+  add(raw,label,format);
  }
- // 新版页面也可能把清晰度列表放在 mediaDefinitions 数组/对象中。
- const source=String(html||"");
+ // 参考 guoapp-sources：识别全部 setVideo* 调用，不只匹配 High/Low/HLS。
+ // setVideoURL('/video.xxx/...') 是页面路径，不是媒体地址，add() 会主动过滤。
+ const callRe=/(?:html5player\s*\.\s*)?(setVideo([A-Za-z0-9_]+))\s*\(\s*(['"])((?:\\.|[^\\])*?)\3\s*\)/gi;
+ let m;
+ while((m=callRe.exec(source))!==null){
+  const method=String(m[2]||"");
+  const value=playerString(m[4]);
+  if(/^HLS$/i.test(method))addCall(value,"hls");
+  else if(/^URL/i.test(method))addCall(value,method);
+ }
+ // 解析 guoapp-sources 已覆盖的常见播放器配置字段。
+ const keyPatterns=[
+  {re:/["']?(?:hls|video_hls|hls_url|hlsUrl)["']?\s*:\s*(['"])((?:\\.|[^\\])*?)\1/ig,format:"hls",label:"自动（HLS）"},
+  {re:/["']?(?:flv_url|video_url|videoUrl|urlHigh|urlLow|contentUrl)["']?\s*:\s*(['"])((?:\\.|[^\\])*?)\1/ig,format:"mp4",label:""},
+ ];
+ for(const spec of keyPatterns){
+  let km;
+  while((km=spec.re.exec(source))!==null){
+   const raw=playerString(km[2]);
+   add(raw,spec.label||qualityName("",raw),spec.format);
+  }
+ }
+ // mediaDefinitions 是部分新版页面的清晰度数组；逐项提取 videoUrl + quality。
  const md=source.search(/\bmediaDefinitions\b/i);
  if(md>=0){
-  const tail=source.slice(md,Math.min(source.length,md+50000));
-  const objects=tail.match(/\{[^{}]{1,6000}\}/g)||[];
+  const tail=source.slice(md,Math.min(source.length,md+60000));
+  const objects=tail.match(/\{[^{}]{1,8000}\}/g)||[];
   for(const obj of objects){
    const vm=/(?:["']?videoUrl["']?)\s*:\s*(['"])((?:\\.|[^\\])*?)\1/i.exec(obj);
    if(!vm)continue;
    const qm=/(?:["']?quality["']?)\s*:\s*(['"]?)(\d{3,4}p?)\1/i.exec(obj);
-   const label=qm?qualityName(qm[2],vm[2]):qualityName("",vm[2]);
-   add(vm[2],label,"mp4");
+   const raw=playerString(vm[2]);
+   add(raw,qm?qualityName(qm[2],raw):qualityName("",raw),"mp4");
   }
  }
- // 兼容少数仅有 flv_url 的旧页面；不把页面里任意 MP4 当作线路。
+ // sources 数组/对象：只在 sources 声明附近取明确的 src/file/url 字段。
+ const sm=/\bsources\b\s*[:=]\s*[\[{]/ig;
+ let sx;
+ while((sx=sm.exec(source))!==null){
+  const segment=source.slice(sx.index,Math.min(source.length,sx.index+30000));
+  const objects=segment.match(/\{[^{}]{1,5000}\}/g)||[];
+  for(const obj of objects){
+   const um=/(?:["']?(?:src|file|url|videoUrl|video_url)["']?)\s*:\s*(['"])((?:\\.|[^\\])*?)\1/i.exec(obj);
+   if(!um)continue;
+   const qm=/(?:["']?(?:label|quality|res)["']?)\s*:\s*(['"]?)([^"',}\s]{1,24})\1/i.exec(obj);
+   const raw=playerString(um[2]);
+   add(raw,qm?qualityName(qm[2],raw):qualityName("",raw),"mp4");
+  }
+ }
+ // 旧版 flv_url 兼容。支持查询参数和配置字段两种写法。
  if(!out.length){
-  const fm=/(?:[?&])flv_url=([^&"'\s<>]+)/i.exec(source)||/flv_url\s*[:=]\s*["']([^"']+)["']/i.exec(source);
-  if(fm&&fm[1]){
-   let u=fm[1].replace(/\+/g,"%20");
-   try{u=decodeURIComponent(u);}catch(e){}
-   add(u,"默认清晰度","mp4");
+  const fm=/(?:[?&])flv_url=([^&"'\s<>]+)/i.exec(source)||/flv_url\s*[:=]\s*(['"])([\s\S]*?)\1/i.exec(source);
+  if(fm){
+   let raw=fm[2]||fm[1]||"";
+   raw=raw.replace(/\+/g,"%20");
+   try{raw=decodeURIComponent(raw);}catch(e){}
+   add(raw,"默认清晰度","mp4");
   }
  }
- // 同名线路去重，避免 high/low 实际指向同一个文件时重复展示。
+ // 优先 HLS，再按清晰度从高到低；同名线路保留第一条。
+ const rank={"2160P":6,"1440P":5,"1080P":4,"720P":3,"480P":2,"360P":1,"默认清晰度":0,"自动（HLS）":7};
+ out.sort((a,b)=>(rank[b.name]||0)-(rank[a.name]||0));
  const names=Object.create(null);
  return out.filter(item=>{if(names[item.name])return false;names[item.name]=true;return true;});
 }
