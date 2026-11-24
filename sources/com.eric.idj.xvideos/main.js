@@ -100,7 +100,7 @@ function mediaStreams(html,page){
   if(u.startsWith("//"))u="https:"+u;
   if(!/^https?:\/\//i.test(u))return;
   if(/^(?:https?:\/\/)?(?:www\.)?xvideos\.com\/video[.-]/i.test(u))return;
-  try{u=decodeURIComponent(u.replace(/\+/g,"%20"));}catch(e){}
+  // 不对完整 URL 执行 decodeURIComponent：签名参数中的 %2F/%2B 等必须原样保留。
   if(!/^https?:\/\//i.test(u)||seen[u])return;
   seen[u]=true;
   const inferred=/\.m3u8(?:[?#]|$)/i.test(u)?"hls":(/\.mp4(?:[?#]|$)/i.test(u)?"mp4":(format||"mp4"));
@@ -200,5 +200,5 @@ export default {
  async category({id="new",page=1}={}){const p=categoryPath(str(id)||"new",page),r=await request(BASE+p,BASE+"/",25000);return parseList(r.body,page);},
  async search({keyword="",page=1}={}){const q=str(keyword);if(!q)return{items:[],page:1,hasMore:false};const n=Math.max(1,Math.floor(Number(page)||1)),p="/?k="+encodeURIComponent(q)+(n>1?"&p="+(n-1):""),r=await request(BASE+p,BASE+"/",25000);return parseList(r.body,n);},
  async detail({id}={}){const d=await loadDetail(id);return{title:d.title,cover:d.cover,desc:"",lines:[{name:"默认线路",episodes:[{id:d.path,name:d.duration>0?Math.floor(d.duration/60)+"分钟":"在线播放"}]}]};},
- async play({episodeId,id}={}){const path=videoPath(episodeId||id),r=await request(BASE+path,BASE+"/",30000),streams=mediaStreams(r.body,r.url||BASE+path);if(!streams.length)fail("E_PARSE","XVideos 页面没有找到可用播放地址；诊断：HTML长度="+r.body.length+"；"+mediaDiagnostics(r.body));return{streams};}
+ async play({episodeId,id}={}){const path=videoPath(episodeId||id),r=await request(BASE+path,BASE+"/",30000),streams=mediaStreams(r.body,r.url||BASE+path);if(!streams.length)fail("E_PARSE","XVideos 页面没有找到可用播放地址；诊断：HTML长度="+r.body.length+"；"+mediaDiagnostics(r.body));if(typeof host.log==="function")host.log("XVideos：解析到 "+streams.length+" 条播放线路："+streams.map(x=>x.name).join(" / "));return{streams};}
 };

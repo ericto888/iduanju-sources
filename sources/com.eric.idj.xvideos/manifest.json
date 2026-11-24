@@ -2,12 +2,12 @@
   "schema": 1,
   "id": "com.eric.idj.xvideos",
   "name": "XVideos",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "author": {
     "name": "iDuanJu 社区移植",
     "contact": "https://github.com/ericto888/iduanju-sources"
   },
-  "description": "XVideos 长视频站插件。修复不同播放地址被同名清晰度去重的问题；保留多条线路，区分高清/标清线路，只有页面明确提供分辨率时才显示具体 P 值。",
+  "description": "XVideos 长视频站插件。修复多清晰度线路解析与签名 URL 保留；显示实际解析到的线路名称和数量。",
   "type": "video",
   "adult": true,
   "minAppVersion": "1.5",
