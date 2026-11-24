@@ -231,7 +231,7 @@ async function getDetail(alias) {
   return{title,cover,desc:dm?htmlText(dm[1]):"",chapters:chaptersFor(body,alias,extractTotalEpisodes(body,payload?payload.episodes:0))};
 }
 export default {
-  async home(){return{categories:CATEGORIES};},
+  async home(){return{categories:CATEGORIES.filter(c=>str(c.id)!==""&&str(c.name)!=="推荐")};},
   async category({id="",page=1}){const r=await listCategory(page,id);return{items:r.items,page:Math.max(1,Number(page)||1),hasMore:r.hasMore};},
   async search({keyword}){if(!str(keyword))return{items:[],hasMore:false};fail("E_UNSUPPORTED","黄瓜短剧当前站点没有可用的搜索接口");},
   async detail({id}){const r=await getDetail(id);return{title:r.title,cover:r.cover,desc:r.desc,lines:[{name:"默认线路",episodes:r.chapters}]};},
