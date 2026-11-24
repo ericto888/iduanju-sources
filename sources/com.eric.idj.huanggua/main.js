@@ -445,6 +445,21 @@ function rememberedSearchItemHost(id) {
   try { const value=str(host.storage.get(SEARCH_ITEM_HOST_PREFIX+str(id))); return allowedHost(value)?value:""; }
   catch(e) { return ""; }
 }
+function normalizeSearchText(value) {
+  return str(value).toLowerCase().replace(/[\\s\\p{P}\\p{S}_]+/gu,"");
+}
+function filterSearchItems(items,keyword) {
+  const q=normalizeSearchText(keyword);
+  if(!q)return [];
+  const seen={},out=[];
+  for(const item of items||[]) {
+    const id=str(item&&item.id),title=normalizeSearchText(item&&item.title);
+    // 搜索结果标题必须实际包含完整关键词；不把页面导航、推荐卡片或宽泛前缀结果混入。
+    if(!id||!title||!title.includes(q)||seen[id])continue;
+    seen[id]=true;out.push(item);
+  }
+  return out;
+}
 function searchKeywordVariants(keyword) {
   const q=str(keyword).replace(/\s+/g," ").trim();
   const out=[];
@@ -528,10 +543,13 @@ async function searchDramas(keyword,page=1) {
       }
       const result=await getText(/^https?:\/\//i.test(target)?target:h+target,h+"/",20000);
       searchDiagnostics(result.body,result,term,p,/^https?:\/\//i.test(target)?target:h+target);
-      let items=parseSearchCardsDOM(result.body,h);
-      const domCount=items.length;
-      if(items.length===0) items=parseCards(result.body,h);
-      host.log("[黄瓜搜索解析] term="+term+" page="+p+" domItems="+domCount+" htmlItems="+items.length+
+      let candidates=parseSearchCardsDOM(result.body,h);
+      const domCount=candidates.length;
+      if(candidates.length===0)candidates=parseCards(result.body,h);
+      const items=filterSearchItems(candidates,q);
+      host.log("[黄瓜搜索解析] term="+term+" page="+p+" domCandidates="+domCount+
+        " candidates="+candidates.length+" matched="+items.length+
+        " titles="+JSON.stringify(candidates.slice(0,12).map(x=>x.title))+
         " hasArticleCards="+hasDramaCards(result.body)+" payload="+!!PAYLOAD_RE.test(result.body));
       if(items.length) {
         const nextLinks=paginationLinks(result.body,h);
