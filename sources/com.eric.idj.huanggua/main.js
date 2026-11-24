@@ -452,7 +452,7 @@ function rememberedSearchItemHost(id) {
   catch(e) { return ""; }
 }
 function normalizeSearchText(value) {
-  return str(value).toLowerCase().replace(/[\\s\\p{P}\\p{S}_]+/gu,"");
+  return str(value).toLowerCase().replace(/[\s.,!?;:，。！？；：、·"'“”‘’（）()\[\]{}<>《》…—_-]+/g,"");
 }
 function filterSearchItems(items,keyword) {
   const q=normalizeSearchText(keyword);
