@@ -179,7 +179,7 @@ function parseCards(body,siteHost) {
   const blocks=String(body||"").match(/<article\b(?=[^>]*\bdata-xpch=["']card-drama["'])[^>]*>[\s\S]*?(?=<article\b(?=[^>]*\bdata-xpch=["']card-drama["'])|$)/gi)||[];
   const payload=parsePayload(body),seen={},items=[];
   for(const segment of blocks){
-    const m=ALIAS_RE.exec(segment),alias=m?str(m[1]):"";if(!alias||seen[alias])continue;
+    const m=/(?:href=["\'][^"\']*\/(?:video|drama)\/([a-zA-Z0-9_-]+)(?:[/?#][^"\']*)?["\'])/i.exec(segment),alias=m?str(m[1]):"";if(!alias||seen[alias])continue;
     const image=cardImage(segment),entry=payload[alias]||null;
     const aria=(/aria-label=["']([^"']+)["']/i.exec(segment)||[])[1]||"";
     const titleAttr=(/(?:data-title|title)=["']([^"']+)["']/i.exec(segment)||[])[1]||"";
@@ -201,7 +201,7 @@ function parseCards(body,siteHost) {
       const attrs=match[1],inner=match[2];
       const href=(/\bhref\s*=\s*["']([^"']+)["']/i.exec(attrs)||[])[1]||"";
       const decodedHref=href.replace(/\\\//g,"/");
-      const idMatch=/\/drama\/([a-zA-Z0-9_-]+)(?:[/?#]|$)/i.exec(decodedHref);
+      const idMatch=/\/(?:video|drama)\/([a-zA-Z0-9_-]+)(?:[/?#]|$)/i.exec(decodedHref);
       const alias=idMatch?str(idMatch[1]):"";
       if(!alias||seen[alias])continue;
       const img=(/<img\b[^>]*>/i.exec(inner)||[])[0]||"";
@@ -226,18 +226,19 @@ function parseCards(body,siteHost) {
 }
 
 function parseSearchCardsDOM(body,siteHost) {
-  // 参考 GuoApp 后加站源：解析 DOM 后按真实剧集链接提取，不以页面外壳特征判定搜索成功。
+  // 黄瓜搜索结果实际使用 /video/<数字ID>/，旧版 /drama/ 仅作为兼容路径保留。
   let root;
   try { root=host.html.parse(String(body||"")); } catch(e) { return []; }
   let anchors;
-  try { anchors=root.select("a[href*='/drama/']"); } catch(e) { return []; }
+  try { anchors=root.select("a"); } catch(e) { return []; }
   const payload=parsePayload(body),seen={},items=[];
   for(const anchor of anchors) {
     const href=htmlText(anchor.attr("href")).replace(/\\\//g,"/");
-    const idMatch=/\/drama\/([a-zA-Z0-9_-]+)(?:[/?#]|$)/i.exec(href);
+    const idMatch=/\/(?:video|drama)\/([a-zA-Z0-9_-]+)(?:[/?#]|$)/i.exec(href);
     const alias=idMatch?str(idMatch[1]):"";
     if(!alias||seen[alias])continue;
-    const img=anchor.selectFirst("img");
+    let img=null;
+    try { img=anchor.selectFirst("img"); } catch(e) {}
     const entry=payload[alias]||null;
     const anchorText=anchor.text();
     const title=str(
@@ -526,7 +527,7 @@ async function searchDramas(keyword,page=1) {
 }
 async function getDetail(alias) {
   alias=str(alias);if(!/^[a-zA-Z0-9-]+$/.test(alias))fail("E_PARSE","黄瓜短剧剧集 ID 无效");
-  const h=await getHost(),url=h+"/drama/"+encodeURIComponent(alias);
+  const h=await getHost(),url=h+"/video/"+encodeURIComponent(alias)+"/";
   const body=await pageWithRefresh(url,h+"/",b=>/<h1\b/i.test(b)),tm=H1_RE.exec(body),title=tm?htmlText(tm[1]):"";
   if(!title)fail("E_PARSE","黄瓜短剧未返回剧集信息");
   const dm=DESC_RE.exec(body),payload=parsePayload(body)[alias];let cover=payload?coverAddress(h,payload.cover,payload.fallback):"";
