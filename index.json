@@ -27,8 +27,8 @@
       "manifest": "https://raw.githubusercontent.com/ericto888/iduanju-sources/main/sources/com.eric.idj.huanggua/manifest.json",
       "type": "shortdrama",
       "adult": true,
-      "version": "1.3.8",
-      "description": "黄瓜短剧：修复首页卡片标题识别与多模板补全，扩大分类列表解析并支持分页。",
+      "version": "1.3.9",
+      "description": "黄瓜短剧：按官网真实分类入口映射，修复分类页连续分页加载。",
       "category": "shortdrama",
       "author": "iDuanJu 社区移植"
     },
