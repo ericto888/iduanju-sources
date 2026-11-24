@@ -27,8 +27,8 @@
       "manifest": "https://raw.githubusercontent.com/ericto888/iduanju-sources/main/sources/com.eric.idj.huanggua/manifest.json",
       "type": "shortdrama",
       "adult": true,
-      "version": "1.1.8",
-      "description": "黄瓜短剧：修复搜索误返回首页推荐、刷新线路丢失搜索关键词的问题。",
+      "version": "1.1.9",
+      "description": "黄瓜短剧：改用已验证的 /search/video/关键词/ 搜索路径，修复搜索翻页和分类页校验。",
       "category": "shortdrama",
       "author": "iDuanJu 社区移植"
     },
