@@ -59,7 +59,7 @@ async function getText(url,referer,timeout) {
 }
 
 function safeMediaAddress(value) {
-  const m=/^(https?:\\/\\/[^/?#]+)([^?#]*)/i.exec(str(value));
+  const m=/^(https?:\/\/[^/?#]+)([^?#]*)/i.exec(str(value));
   return m?m[1]+(m[2]||"/"):"";
 }
 function responseHeader(headers,name) {
