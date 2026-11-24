@@ -146,10 +146,9 @@ function hasDramaCards(body) {
   return /<article\b(?=[^>]*\bdata-xpch=["']card-drama["'])/i.test(String(body||""));
 }
 function isSearchResponse(body,responseUrl) {
-  // 首页推荐同样使用 card-drama 卡片，不能仅凭卡片存在就认定搜索成功。
-  // 搜索结果必须仍来自 /search 路由；若请求被重定向到首页/分类页则拒绝。
+  // 搜索结果使用 /search/video/<关键词>/ 路由；拒绝被重定向到首页/分类页的响应。
   const path=String(responseUrl||"").replace(/^https?:\/\/[^/]+/i,"").split(/[?#]/)[0];
-  return hasDramaCards(body)&&/\/search(?:\/|$)/i.test(path);
+  return hasDramaCards(body)&&/\/search\/video(?:\/|$)/i.test(path);
 }
 function parseCards(body,siteHost) {
   // 黄瓜新版卡片的剧名优先位于 aria-label；兼容 img alt、Nuxt payload 和标题属性。
@@ -305,7 +304,7 @@ async function fetchCategoryPage(h,category,page) {
   for(const target of candidates) {
     try {
       const url=/^https?:\/\//i.test(target)?target:h+target;
-      const body=await pageWithRefresh(url,h+"/",(b,u)=>isSearchResponse(b,u));
+      const body=await pageWithRefresh(url,h+"/",b=>hasDramaCards(b));
       const items=parseCards(body,h);
       if(items.length) {
         const nextLinks=paginationLinks(body,h);
@@ -341,20 +340,17 @@ async function searchDramas(keyword,page=1) {
   // 先读取第一页的真实分页链接，避免猜测网站分页规则。
   if(p>1) {
     try {
-      firstBody=await pageWithRefresh(h+"/search?q="+encoded,h+"/",(b,u)=>isSearchResponse(b,u));
+      firstBody=await pageWithRefresh(h+"/search/video/"+encoded+"/",h+"/",(b,u)=>isSearchResponse(b,u));
       links=paginationLinks(firstBody,h);
     } catch(e) {}
   }
-  const paths=p===1
-    ? ["/search?q="+encoded,"/search?keyword="+encoded,"/search?wd="+encoded]
-    : (links[p]?[links[p]]:[
-        "/search?q="+encoded+"&page="+p,
-        "/search?q="+encoded+"&p="+p,
-        "/search?page="+p+"&q="+encoded,
-        "/search/page-"+p+"?q="+encoded,
-        "/search/"+encoded+"/page-"+p,
-        "/search/"+encoded+"/"+p+"/"
-      ]);
+  const firstPath="/search/video/"+encoded+"/";
+  if(p>1&&!firstBody) {
+    firstBody=await pageWithRefresh(h+firstPath,h+"/",(b,u)=>isSearchResponse(b,u));
+    links=paginationLinks(firstBody,h);
+  }
+  const paths=p===1?[firstPath]:(links[p]?[links[p]]:(links.next?[links.next]:[]));
+  if(!paths.length)fail("E_PARSE","搜索结果页面未提供有效的下一页链接");
   let lastError=null;
   for(const path of paths) {
     try {
