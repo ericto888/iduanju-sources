@@ -57,6 +57,32 @@ async function getText(url,referer,timeout) {
   const r=await request(url,referer,timeout);
   return {body:str(r.body),url:str(r.url)||url,headers:r.headers||{},status:Number(r.status)||0};
 }
+
+function safeMediaAddress(value) {
+  const m=/^(https?:\\/\\/[^/?#]+)([^?#]*)/i.exec(str(value));
+  return m?m[1]+(m[2]||"/"):"";
+}
+function responseHeader(headers,name) {
+  const target=String(name||"").toLowerCase();
+  for(const key of Object.keys(headers||{})) if(String(key).toLowerCase()===target)return str(headers[key]);
+  return "";
+}
+async function probeMedia(media,referer) {
+  const info={url:safeMediaAddress(media),status:0,finalUrl:"",contentType:"",contentRange:"",acceptRanges:"",bytes:0,error:""};
+  try {
+    const r=await host.http.request({url:media,headers:{Referer:referer||"",Range:"bytes=0-1",Accept:"*/*"},timeout:9000});
+    info.status=Number(r&&r.status)||0;
+    info.finalUrl=safeMediaAddress(r&&r.url||media);
+    info.contentType=responseHeader(r&&r.headers,"content-type");
+    info.contentRange=responseHeader(r&&r.headers,"content-range");
+    info.acceptRanges=responseHeader(r&&r.headers,"accept-ranges");
+    const body=r&&r.body;
+    info.bytes=typeof body==="string"?body.length:(body&&typeof body.length==="number"?body.length:0);
+  } catch(e) { info.error=String(e&&e.message||e).slice(0,240); }
+  try { host.log("[黄瓜媒体探测] "+JSON.stringify(info)); }
+  catch(e) { host.log("[黄瓜媒体探测] status="+info.status+" type="+info.contentType+" bytes="+info.bytes+" error="+info.error); }
+  return info;
+}
 function readCachedHost() {
   try {
     const v=host.storage.get(CACHE_KEY),p=typeof v==="string"?JSON.parse(v):v;
@@ -652,6 +678,8 @@ export default {
       stage="parse media URL";
       const media=parsePlayUrl(body);
       if(!media)fail("E_PARSE","黄瓜短剧详情页未提取到媒体地址；请查看详情诊断日志");
+      stage="probe media response";
+      await probeMedia(media,url);
       stage="build stream";
       return{streams:[{name:"默认",url:media,format:/\.m3u8(?:[?#]|$)/i.test(media)?"hls":"mp4",headers:{Referer:url}}]};
     } catch(e) {
