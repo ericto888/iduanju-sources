@@ -69,6 +69,21 @@ function videoPath(id){
 }
 function playerString(raw){let v=cleanText(raw).trim().replace(/\\\//g,"/").replace(/\\u0026/gi,"&").replace(/\\x26/gi,"&").replace(/\\'/g,"'").replace(/\\"/g,'"').replace(/\\\\/g,"\\");return v.replace(/\\u([0-9a-f]{4})/gi,(_,h)=>String.fromCharCode(parseInt(h,16)));}
 function playerCall(fn,html){const p="html5player\\s*\\.\\s*"+escRE(fn)+"\\s*\\(\\s*",patterns=[p+"'((?:\\\\.|[^'\\\\])*)'\\s*\\)",p+'"((?:\\\\.|[^"\\\\])*)"\\s*\\)'];for(const re of patterns){const m=groups(re,html);if(m&&m[1])return playerString(m[1]);}return"";}
+function mediaDiagnostics(html){
+ const s=String(html||"");
+ const count=re=>((s.match(re)||[]).length);
+ return [
+  "html5player:"+count(/html5player/gi),
+  "setVideoUrl:"+count(/setVideoUrl[A-Za-z0-9_]*/gi),
+  "setVideoHLS:"+count(/setVideoHLS/gi),
+  "mediaDefinitions:"+count(/mediaDefinitions/gi),
+  "videoUrl:"+count(/videoUrl/gi),
+  "m3u8:"+count(/m3u8/gi),
+  "mp4:"+count(/\.mp4/gi),
+  "flv_url:"+count(/flv_url/gi),
+  "player:"+count(/player/gi)
+ ].join(", ");
+}
 function mediaStreams(html,page){
  const out=[],seen=Object.create(null);
  function add(raw,name,format){
@@ -130,5 +145,5 @@ export default {
  async category({id="new",page=1}={}){const p=categoryPath(str(id)||"new",page),r=await request(BASE+p,BASE+"/",25000);return parseList(r.body,page);},
  async search({keyword="",page=1}={}){const q=str(keyword);if(!q)return{items:[],page:1,hasMore:false};const n=Math.max(1,Math.floor(Number(page)||1)),p="/?k="+encodeURIComponent(q)+(n>1?"&p="+(n-1):""),r=await request(BASE+p,BASE+"/",25000);return parseList(r.body,n);},
  async detail({id}={}){const d=await loadDetail(id);return{title:d.title,cover:d.cover,desc:"",lines:[{name:"默认线路",episodes:[{id:d.path,name:d.duration>0?Math.floor(d.duration/60)+"分钟":"在线播放"}]}]};},
- async play({episodeId,id}={}){const path=videoPath(episodeId||id),r=await request(BASE+path,BASE+"/",30000),streams=mediaStreams(r.body,r.url||BASE+path);if(!streams.length)fail("E_PARSE","XVideos 页面没有找到可用播放地址");return{streams};}
+ async play({episodeId,id}={}){const path=videoPath(episodeId||id),r=await request(BASE+path,BASE+"/",30000),streams=mediaStreams(r.body,r.url||BASE+path);if(!streams.length)fail("E_PARSE","XVideos 页面没有找到可用播放地址；诊断：HTML长度="+r.body.length+"；"+mediaDiagnostics(r.body));return{streams};}
 };
