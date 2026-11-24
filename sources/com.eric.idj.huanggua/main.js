@@ -568,15 +568,15 @@ async function searchDramas(keyword,page=1) {
 function detailDiagnostics(body,response,alias,requestedUrl) {
   const html=String(body||"");
   const h1=(H1_RE.exec(html)||[])[1]||"";
-  const pageTitle=(/<title[^>]*>([\\s\\S]*?)<\\/title>/i.exec(html)||[])[1]||"";
+  const pageTitle=(/<title[^>]*>([\s\S]*?)<\/title>/i.exec(html)||[])[1]||"";
   const visible=htmlText(html);
-  const playLinks=[],hrefRe=/\\bhref\\s*=\\s*["']([^"']*\\/play\\/[^"']*)["']/gi;
+  const playLinks=[],hrefRe=/\bhref\s*=\s*["']([^"']*\/play\/[^"']*)["']/gi;
   let m;
   while((m=hrefRe.exec(html))!==null&&playLinks.length<20) {
-    const value=m[1].replace(/&amp;/g,"&").replace(/\\\\\\//g,"/");
+    const value=m[1].replace(/&amp;/g,"&").replace(/\\\//g,"/");
     if(!playLinks.includes(value))playLinks.push(value);
   }
-  const routeLinks=[],routeRe=/\\bhref\\s*=\\s*["']([^"']*\\/(?:video|drama)\\/[^"']*)["']/gi;
+  const routeLinks=[],routeRe=/\bhref\s*=\s*["']([^"']*\/(?:video|drama)\/[^"']*)["']/gi;
   while((m=routeRe.exec(html))!==null&&routeLinks.length<12) {
     const value=m[1].replace(/&amp;/g,"&").replace(/\\\\\\//g,"/");
     if(!routeLinks.includes(value))routeLinks.push(value);
@@ -597,14 +597,14 @@ async function getDetail(alias) {
   alias=str(alias);if(!/^[a-zA-Z0-9-]+$/.test(alias))fail("E_PARSE","黄瓜短剧剧集 ID 无效");
   const itemHost=rememberedSearchItemHost(alias);
   const h=itemHost||await getHost();
-  const route=/^\\d+$/.test(alias)?"/video/":"/drama/";
+  const route=/^\d+$/.test(alias)?"/video/":"/drama/";
   const url=h+route+encodeURIComponent(alias)+"/";
   let response,body;
   if(itemHost) {
     response=await getText(url,h+"/",20000);
     body=response.body;
   } else {
-    body=await pageWithRefresh(url,h+"/",b=>/<h1\\b/i.test(b));
+    body=await pageWithRefresh(url,h+"/",b=>/<h1\b/i.test(b));
     response={url,status:200};
   }
   detailDiagnostics(body,response,alias,url);
