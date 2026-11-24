@@ -181,13 +181,45 @@ function parsePlayUrl(body) {
   const genericMatch = M3U8_RE.exec(body);
   return genericMatch ? unescapePlayUrl(genericMatch[0]) : "";
 }
+const CATEGORY_CACHE_PREFIX = "huanggua.category.v1.";
+const CATEGORY_CACHE_TTL = 10 * 60 * 1000;
+
+function readCategoryCache(category,page) {
+  try {
+    const raw=host.storage.get(CATEGORY_CACHE_PREFIX+category+"."+page);
+    const value=typeof raw==="string"?JSON.parse(raw):raw;
+    if(value&&Array.isArray(value.items)&&value.items.length&&Number(value.savedAt)>0) {
+      return {items:value.items,hasMore:!!value.hasMore,savedAt:Number(value.savedAt)};
+    }
+  } catch(e) {}
+  return null;
+}
+function writeCategoryCache(category,page,result) {
+  try {
+    host.storage.set(CATEGORY_CACHE_PREFIX+category+"."+page,JSON.stringify({
+      items:result.items,hasMore:!!result.hasMore,savedAt:Date.now()
+    }));
+  } catch(e) {}
+}
 async function listCategory(page,category) {
   const p=Math.max(1,Math.floor(Number(page)||1));if(p>1)return{items:[],hasMore:false};
   if(!CATEGORY_IDS.includes(str(category)))fail("E_PARSE","黄瓜短剧分类无效");
-  const h=await getHost(),path=category===""?"/":"/"+category;
-  const body=await pageWithRefresh(h+path,h+"/",b=>b.includes("黄瓜短剧")&&b.includes(CARD_SPLIT));
-  const items=parseCards(body,h);if(!items.length)fail("E_PARSE","黄瓜短剧没有返回剧集，请稍后重试");
-  return{items,hasMore:false};
+  const cached=readCategoryCache(category,p);
+  if(cached&&Date.now()-cached.savedAt<CATEGORY_CACHE_TTL) {
+    return {items:cached.items,hasMore:cached.hasMore};
+  }
+  try {
+    const h=await getHost(),path=category===""?"/":"/"+category;
+    const body=await pageWithRefresh(h+path,h+"/",b=>b.includes("黄瓜短剧")&&b.includes(CARD_SPLIT));
+    const items=parseCards(body,h);if(!items.length)fail("E_PARSE","黄瓜短剧没有返回剧集，请稍后重试");
+    const result={items,hasMore:false};
+    writeCategoryCache(category,p,result);
+    return result;
+  } catch(e) {
+    // 网络/线路短暂异常时优先展示上次成功结果，不让切换分类后出现整页空白。
+    if(cached&&cached.items.length)return {items:cached.items,hasMore:cached.hasMore};
+    throw e;
+  }
 }
 async function getDetail(alias) {
   alias=str(alias);if(!/^[a-zA-Z0-9-]+$/.test(alias))fail("E_PARSE","黄瓜短剧剧集 ID 无效");
