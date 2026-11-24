@@ -2,12 +2,12 @@
   "schema": 1,
   "id": "com.eric.idj.huanggua",
   "name": "黄瓜短剧",
-  "version": "1.1.8",
+  "version": "1.1.9",
   "author": {
     "name": "iDuanJu 社区移植",
     "contact": "https://github.com/ericto888/iduanju-sources"
   },
-  "description": "由 GuoApp 黄瓜短剧适配为 iDuanJu 插件；修复搜索误返回首页推荐及刷新线路丢失搜索参数。",
+  "description": "由 GuoApp 黄瓜短剧适配为 iDuanJu 插件；修复搜索路径为 /search/video/关键词/、搜索翻页链接解析及分类页校验。",
   "type": "shortdrama",
   "adult": true,
   "minAppVersion": "1.5",
