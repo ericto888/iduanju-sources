@@ -565,13 +565,49 @@ async function searchDramas(keyword,page=1) {
   }
   throw lastError||host.error("E_NOT_FOUND","黄瓜短剧没有找到匹配的搜索结果");
 }
+function detailDiagnostics(body,response,alias,requestedUrl) {
+  const html=String(body||"");
+  const h1=(H1_RE.exec(html)||[])[1]||"";
+  const pageTitle=(/<title[^>]*>([\\s\\S]*?)<\\/title>/i.exec(html)||[])[1]||"";
+  const visible=htmlText(html);
+  const playLinks=[],hrefRe=/\\bhref\\s*=\\s*["']([^"']*\\/play\\/[^"']*)["']/gi;
+  let m;
+  while((m=hrefRe.exec(html))!==null&&playLinks.length<20) {
+    const value=m[1].replace(/&amp;/g,"&").replace(/\\\\\\//g,"/");
+    if(!playLinks.includes(value))playLinks.push(value);
+  }
+  const routeLinks=[],routeRe=/\\bhref\\s*=\\s*["']([^"']*\\/(?:video|drama)\\/[^"']*)["']/gi;
+  while((m=routeRe.exec(html))!==null&&routeLinks.length<12) {
+    const value=m[1].replace(/&amp;/g,"&").replace(/\\\\\\//g,"/");
+    if(!routeLinks.includes(value))routeLinks.push(value);
+  }
+  const blocked=/(已停止访问|停止访问|停止提供服务|页面不存在|内容不存在|已下架|无法访问)/i.test(visible);
+  const info={
+    id:alias,requestedUrl:requestedUrl||"",finalUrl:str(response&&response.url),
+    status:Number(response&&response.status)||0,bytes:html.length,
+    pageTitle:htmlText(pageTitle).slice(0,160),h1:htmlText(h1).slice(0,160),
+    blockedText:blocked,blockedExcerpt:(visible.match(/.{0,35}(?:已停止访问|停止访问|停止提供服务|页面不存在|内容不存在|已下架|无法访问).{0,55}/i)||[])[0]||"",
+    playLinkCount:playLinks.length,playLinks:playLinks.slice(0,12),
+    detailLinks:routeLinks.slice(0,8),bodyText:visible.slice(0,420)
+  };
+  try { host.log("[黄瓜详情诊断] "+JSON.stringify(info)); }
+  catch(e) { host.log("[黄瓜详情诊断] id="+alias+" status="+info.status+" bytes="+info.bytes+" title="+info.pageTitle+" h1="+info.h1+" playLinks="+info.playLinkCount+" blocked="+blocked); }
+}
 async function getDetail(alias) {
   alias=str(alias);if(!/^[a-zA-Z0-9-]+$/.test(alias))fail("E_PARSE","黄瓜短剧剧集 ID 无效");
   const itemHost=rememberedSearchItemHost(alias);
   const h=itemHost||await getHost();
-  const route=/^\d+$/.test(alias)?"/video/":"/drama/";
+  const route=/^\\d+$/.test(alias)?"/video/":"/drama/";
   const url=h+route+encodeURIComponent(alias)+"/";
-  const body=itemHost?(await getText(url,h+"/",20000)).body:await pageWithRefresh(url,h+"/",b=>/<h1\b/i.test(b));
+  let response,body;
+  if(itemHost) {
+    response=await getText(url,h+"/",20000);
+    body=response.body;
+  } else {
+    body=await pageWithRefresh(url,h+"/",b=>/<h1\\b/i.test(b));
+    response={url,status:200};
+  }
+  detailDiagnostics(body,response,alias,url);
   const tm=H1_RE.exec(body),title=tm?htmlText(tm[1]):"";
   if(!title)fail("E_PARSE","黄瓜短剧未返回剧集信息");
   const dm=DESC_RE.exec(body),payload=parsePayload(body)[alias];let cover=payload?coverAddress(h,payload.cover,payload.fallback):"";
