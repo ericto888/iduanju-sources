@@ -2,12 +2,12 @@
   "schema": 1,
   "id": "com.eric.idj.huanggua",
   "name": "黄瓜短剧",
-  "version": "1.3.3",
+  "version": "1.3.4",
   "author": {
     "name": "iDuanJu 社区移植",
     "contact": "https://github.com/ericto888/iduanju-sources"
   },
-  "description": "黄瓜短剧修复版：增加媒体 CDN Range 响应探测，记录状态码、重定向、类型与响应长度以定位播放失败。",
+  "description": "黄瓜短剧修复版：区分 CDN Range 与普通 GET 响应；停止访问页面不再伪造正片。",
   "type": "shortdrama",
   "adult": true,
   "minAppVersion": "1.5",
