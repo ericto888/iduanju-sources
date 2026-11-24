@@ -87,12 +87,17 @@ async function getHost(forceRefresh) {
   fail("E_NETWORK","黄瓜短剧未发现可用线路。请先开启 VPN 刷新最新地址，再关闭 VPN 重试");
 }
 async function pageWithRefresh(url,referer,validator) {
-  try{const r=await getText(url,referer);if(!validator||validator(r.body))return r.body;}catch(e){}
+  try{const r=await getText(url,referer);if(!validator||validator(r.body))return r.body;}catch(e){
+    // 404 表示该集在当前线路确实不存在，不应刷新线路后重复请求同一个失效集数。
+    if(e&&e.code==="E_NOT_FOUND")throw e;
+    if(/HTTP 404/.test(String(e&&e.message||e)))throw e;
+  }
   const fresh=await getHost(true),m=/^https?:\/\/[^/]+(\/[^?#]*)?(?:[?#].*)?$/i.exec(url),path=m&&m[1]?m[1]:"/";
   const r=await getText(fresh+path,fresh+"/");
   if(validator&&!validator(r.body))fail("E_PARSE","黄瓜短剧最新地址已刷新，但页面结构仍不可用");
   return r.body;
 }
+
 function base64Raw(value) {
   const a="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/",b=[];
   for(let i=0;i<value.length;i++){const c=value.charCodeAt(i);if(c<128)b.push(c);else if(c<2048)b.push(192|(c>>6),128|(c&63));else b.push(224|(c>>12),128|((c>>6)&63),128|(c&63));}
@@ -162,6 +167,23 @@ function chaptersFor(body,alias) {
   if(!out.length)out.push({id:alias+"/1",name:"1"});
   return out;
 }
+async function playableChapters(body,alias,siteHost) {
+  const re=new RegExp("/play/"+alias+"/(\\d+)","g"),seen={},numbers=[];let m;
+  while((m=re.exec(body))!==null){const n=Number(m[1]);if(n>0&&n<=9999&&!seen[n]){seen[n]=true;numbers.push(n);}}
+  numbers.sort((a,b)=>a-b);
+  const valid=[];
+  // 小批量并发探测真实播放页；只保留 HTTP 成功且确实含媒体地址的集数。
+  for(let i=0;i<numbers.length;i+=4) {
+    const batch=numbers.slice(i,i+4);
+    const results=await Promise.all(batch.map(async n=>{
+      const url=siteHost+"/play/"+encodeURIComponent(alias)+"/"+n;
+      try { const page=await getText(url,url,12000);return parsePlayUrl(page.body)?n:null; }
+      catch(e) { return null; }
+    }));
+    for(const n of results)if(n!==null)valid.push(n);
+  }
+  return valid.map(n=>({id:alias+"/"+n,name:String(n)}));
+}
 function unescapePlayUrl(raw) {
   let value = String(raw)
     .replace(/\\\\u002[Ff]/g, "/")
@@ -227,7 +249,8 @@ async function getDetail(alias) {
   if(!title)fail("E_PARSE","黄瓜短剧未返回剧集信息");
   const dm=DESC_RE.exec(body),payload=parsePayload(body)[alias];let cover=payload?coverAddress(h,payload.cover,payload.fallback):"";
   if(!cover){const image=cardImage(body);if(image.cover)cover=h+image.cover;}
-  return{title,cover,desc:dm?htmlText(dm[1]):"",chapters:chaptersFor(body,alias)};
+  const chapters=await playableChapters(body,alias,h);
+  return{title,cover,desc:dm?htmlText(dm[1]):"",chapters};
 }
 export default {
   async home(){return{categories:CATEGORIES.filter(c=>str(c.id)!==""&&str(c.name)!=="推荐")};},
