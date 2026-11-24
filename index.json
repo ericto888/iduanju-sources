@@ -27,8 +27,8 @@
       "manifest": "https://raw.githubusercontent.com/ericto888/iduanju-sources/main/sources/com.eric.idj.huanggua/manifest.json",
       "type": "shortdrama",
       "adult": true,
-      "version": "1.3.3",
-      "description": "黄瓜短剧：新增媒体 CDN Range 响应探测，定位 -1011 播放失败。",
+      "version": "1.3.4",
+      "description": "黄瓜短剧：区分 CDN Range 与普通 GET 响应，拦截停止访问页面中的伪正片。",
       "category": "shortdrama",
       "author": "iDuanJu 社区移植"
     },
