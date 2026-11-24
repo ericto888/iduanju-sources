@@ -2,12 +2,12 @@
   "schema": 1,
   "id": "com.eric.idj.huanggua",
   "name": "黄瓜短剧",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "author": {
     "name": "iDuanJu 社区移植",
     "contact": "https://github.com/ericto888/iduanju-sources"
   },
-  "description": "由 GuoApp 黄瓜短剧适配为 iDuanJu 插件；修复播放地址解码、授权当前播放 CDN，并从详情页集数信息生成完整数字选集。支持分类、详情、多集播放、最新地址发现与线路缓存。",
+  "description": "由 GuoApp 黄瓜短剧适配为 iDuanJu 插件；支持推荐及分类懒加载、分类结果缓存、详情、多集播放、最新地址发现与线路缓存；修复播放地址解码并授权当前播放 CDN。",
   "type": "shortdrama",
   "adult": true,
   "minAppVersion": "1.5",
