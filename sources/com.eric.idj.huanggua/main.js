@@ -136,11 +136,11 @@ function cardImage(segment) {
   return{cover:"",title:""};
 }
 function hasDramaCards(body) {
-  return /<article\\b(?=[^>]*\\bdata-xpch=["']card-drama["'])/i.test(String(body||""));
+  return /<article\b(?=[^>]*\bdata-xpch=["']card-drama["'])/i.test(String(body||""));
 }
 function parseCards(body,siteHost) {
-  // 不依赖 article 属性顺序，也不只认 img alt：黄瓜新版卡片把剧名放在 aria-label。
-  const blocks=String(body||"").match(/<article\\b(?=[^>]*\\bdata-xpch=["']card-drama["'])[^>]*>[\\s\\S]*?(?=<article\\b(?=[^>]*\\bdata-xpch=["']card-drama["'])|$)/gi)||[];
+  // 黄瓜新版卡片的剧名优先位于 aria-label；兼容 img alt、Nuxt payload 和标题属性。
+  const blocks=String(body||"").match(/<article\b(?=[^>]*\bdata-xpch=["']card-drama["'])[^>]*>[\s\S]*?(?=<article\b(?=[^>]*\bdata-xpch=["']card-drama["'])|$)/gi)||[];
   if(!blocks.length)return[];
   const payload=parsePayload(body),seen={},items=[];
   for(const segment of blocks){
@@ -148,8 +148,8 @@ function parseCards(body,siteHost) {
     const image=cardImage(segment),entry=payload[alias]||null;
     const aria=(/aria-label=["']([^"']+)["']/i.exec(segment)||[])[1]||"";
     const titleAttr=(/(?:data-title|title)=["']([^"']+)["']/i.exec(segment)||[])[1]||"";
-    const heading=(/<(?:h[1-6]|span|div)[^>]*(?:class=["'][^"']*(?:title|name)[^"']*["'])?[^>]*>([\\s\\S]*?)<\\/(?:h[1-6]|span|div)>/i.exec(segment)||[])[1]||"";
-    const title=str(htmlText(aria).replace(/\\s*详情\\s*$/,"")||image.title||(entry&&entry.title)||htmlText(titleAttr)||htmlText(heading));
+    const heading=(/<(?:h[1-6]|span|div)\b[^>]*>([\s\S]*?)<\/(?:h[1-6]|span|div)>/i.exec(segment)||[])[1]||"";
+    const title=str(htmlText(aria).replace(/\s*详情\s*$/,"")||image.title||(entry&&entry.title)||htmlText(titleAttr)||htmlText(heading));
     if(!title)continue;
     let cover=image.cover?siteHost+image.cover:"";if(!cover&&entry)cover=coverAddress(siteHost,entry.cover,entry.fallback);
     const ep=EPISODE_RE.exec(segment),heat=HEAT_RE.exec(segment),count=ep?Number(ep[1]):(entry?entry.episodes:0);
