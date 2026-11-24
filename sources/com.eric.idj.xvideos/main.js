@@ -155,7 +155,7 @@ function mediaStreams(html,page){
    if(!vm)continue;
    const qm=/(?:["']?quality["']?)\s*:\s*["']?(\d{3,4}p?)["']?/i.exec(obj);
    const raw=playerString(vm[2]);
-   add(raw,qm?qualityName(qm[2],raw):qualityName("",raw),"mp4");
+   add(raw,qm?qualityName(qm[1],raw):qualityName("",raw),"mp4");
   }
  }
  // sources 数组/对象：只在 sources 声明附近取明确的 src/file/url 字段。
