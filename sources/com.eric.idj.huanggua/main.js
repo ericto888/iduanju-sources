@@ -178,7 +178,6 @@ function isSearchResponse(body,responseUrl) {
 function parseCards(body,siteHost) {
   // 黄瓜新版卡片的剧名优先位于 aria-label；兼容 img alt、Nuxt payload 和标题属性。
   const blocks=String(body||"").match(/<article\b(?=[^>]*\bdata-xpch=["']card-drama["'])[^>]*>[\s\S]*?(?=<article\b(?=[^>]*\bdata-xpch=["']card-drama["'])|$)/gi)||[];
-  if(!blocks.length)return[];
   const payload=parsePayload(body),seen={},items=[];
   for(const segment of blocks){
     const m=ALIAS_RE.exec(segment),alias=m?str(m[1]):"";if(!alias||seen[alias])continue;
