@@ -27,8 +27,8 @@
       "manifest": "https://raw.githubusercontent.com/ericto888/iduanju-sources/main/sources/com.eric.idj.huanggua/manifest.json",
       "type": "shortdrama",
       "adult": true,
-      "version": "1.2.7",
-      "description": "黄瓜短剧：修复搜索分页结束判断，详情和播放沿用搜索结果的原始站点，避免数字 ID 跨域请求 404。",
+      "version": "1.2.8",
+      "description": "黄瓜短剧：搜索结果按完整关键词匹配剧名并去重，过滤推荐剧集；详情与播放沿用搜索来源站点。",
       "category": "shortdrama",
       "author": "iDuanJu 社区移植"
     },
