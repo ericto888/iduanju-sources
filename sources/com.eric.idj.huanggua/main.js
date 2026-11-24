@@ -68,20 +68,28 @@ function responseHeader(headers,name) {
   return "";
 }
 async function probeMedia(media,referer) {
-  const info={url:safeMediaAddress(media),status:0,finalUrl:"",contentType:"",contentRange:"",acceptRanges:"",bytes:0,error:""};
-  try {
-    const r=await host.http.request({url:media,headers:{Referer:referer||"",Range:"bytes=0-1",Accept:"*/*"},timeout:9000});
-    info.status=Number(r&&r.status)||0;
-    info.finalUrl=safeMediaAddress(r&&r.url||media);
-    info.contentType=responseHeader(r&&r.headers,"content-type");
-    info.contentRange=responseHeader(r&&r.headers,"content-range");
-    info.acceptRanges=responseHeader(r&&r.headers,"accept-ranges");
-    const body=r&&r.body;
-    info.bytes=typeof body==="string"?body.length:(body&&typeof body.length==="number"?body.length:0);
-  } catch(e) { info.error=String(e&&e.message||e).slice(0,240); }
-  try { host.log("[黄瓜媒体探测] "+JSON.stringify(info)); }
-  catch(e) { host.log("[黄瓜媒体探测] status="+info.status+" type="+info.contentType+" bytes="+info.bytes+" error="+info.error); }
-  return info;
+  async function one(label,headers) {
+    const info={mode:label,status:0,finalUrl:"",contentType:"",contentRange:"",acceptRanges:"",bytes:0,body:"",error:""};
+    try {
+      const r=await host.http.request({url:media,headers:Object.assign({Referer:referer||"",Accept:"*/*"},headers||{}),timeout:9000});
+      info.status=Number(r&&r.status)||0;
+      info.finalUrl=safeMediaAddress(r&&r.url||media);
+      info.contentType=responseHeader(r&&r.headers,"content-type");
+      info.contentRange=responseHeader(r&&r.headers,"content-range");
+      info.acceptRanges=responseHeader(r&&r.headers,"accept-ranges");
+      const body=r&&r.body;
+      const value=typeof body==="string"?body:(body&&typeof body.toString==="function"?body.toString():"");
+      info.bytes=value.length;
+      info.body=value.replace(/[\\r\\n\\t]+/g," ").slice(0,160);
+    } catch(e) { info.error=String(e&&e.message||e).slice(0,240); }
+    try { host.log("[黄瓜媒体探测] "+JSON.stringify(info)); }
+    catch(e) { host.log("[黄瓜媒体探测] "+label+" status="+info.status+" type="+info.contentType+" body="+info.body+" error="+info.error); }
+    return info;
+  }
+  const ranged=await one("range",{"Range":"bytes=0-1"});
+  if(ranged.status>=200&&ranged.status<300)return ranged;
+  // 有些 CDN 不接受 m3u8 的 Range 请求；再用普通 GET 区分 Range 限制与资源本身被拒绝。
+  return await one("normal-get",{});
 }
 function readCachedHost() {
   try {
@@ -648,7 +656,11 @@ async function getDetail(alias) {
   let cover=payload?coverAddress(h,payload.cover,payload.fallback):"";
   if(!cover){const image=cardImage(body);if(image.cover)cover=coverAddress(h,image.cover,"");}
   const chapters=chaptersFor(body,alias);
-  // 部分详情页不提供 /play/ 链接，而是在详情 HTML 中直接嵌入媒体地址。
+  // 被站点拦截/停止访问的页面即使残留媒体 URL，也不能伪装成可播放正片。
+  if(chapters.length===0&&/(已停止访问|停止访问|停止提供服务|页面不存在|内容不存在|已下架|无法访问)/i.test(htmlText(body))) {
+    fail("E_UNAVAILABLE","黄瓜短剧详情页已被站点停止访问，页面中的媒体地址不可视为有效剧集");
+  }
+  // 部分正常详情页不提供 /play/ 链接，而是在详情 HTML 中直接嵌入媒体地址。
   if(chapters.length===0&&parsePlayUrl(body))chapters.push({id:alias+"/1",name:"正片"});
   return{title,cover,desc:dm?htmlText(dm[1]):"",chapters};
 }
