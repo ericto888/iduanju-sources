@@ -42,17 +42,6 @@
       "description": "XVideos：新增分类浏览，分类置于上月最佳之后；保留多清晰度线路解析。",
       "category": "video",
       "author": "iDuanJu 社区移植"
-    },
-    {
-      "id": "com.eric.idj.hongguo",
-      "name": "红果短剧",
-      "manifest": "https://raw.githubusercontent.com/ericto888/iduanju-sources/main/sources/com.eric.idj.hongguo/manifest.json",
-      "type": "shortdrama",
-      "adult": false,
-      "version": "1.0.0",
-      "description": "红果短剧：真人剧、漫剧、AI剧分类，搜索、详情及网页直链播放。",
-      "category": "shortdrama",
-      "author": "iDuanJu 社区移植"
     }
   ]
 }
