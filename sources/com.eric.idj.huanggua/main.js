@@ -178,7 +178,11 @@ async function playableChapters(body,alias,siteHost) {
     const results=await Promise.all(batch.map(async n=>{
       const url=siteHost+"/play/"+encodeURIComponent(alias)+"/"+n;
       try { const page=await getText(url,url,12000);return parsePlayUrl(page.body)?n:null; }
-      catch(e) { return null; }
+      catch(e) {
+        const message=String(e&&e.message||e);
+        // 只因明确 404 删除集数；超时/临时网络故障时保留，避免网络波动造成集数被误删。
+        return e&&e.code==="E_NOT_FOUND"||/HTTP 404/.test(message)?null:n;
+      }
     }));
     for(const n of results)if(n!==null)valid.push(n);
   }
