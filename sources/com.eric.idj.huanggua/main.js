@@ -283,13 +283,17 @@ function parseSearchCardsDOM(body,siteHost) {
     let img=null;
     try { img=anchor.selectFirst("img"); } catch(e) {}
     const entry=payload[alias]||null;
+    const ariaLabel=htmlText(anchor.attr("aria-label")).replace(/\s*详情\s*$/,"");
+    const titleAttr=htmlText(anchor.attr("title"));
+    // 搜索页的全局导航/推荐链接也可能指向 /video/<id>/。
+    // 只有带封面或明确标题属性的链接才视为结果卡片，禁止用任意链接文本兜底。
+    if(!img&&!ariaLabel&&!titleAttr)continue;
     const anchorText=anchor.text();
     const title=str(
-      htmlText(anchor.attr("aria-label")).replace(/\s*详情\s*$/,"") ||
-      htmlText(anchor.attr("title")) ||
+      ariaLabel ||
+      titleAttr ||
       (img?htmlText(img.attr("alt")):"") ||
-      (entry&&entry.title) ||
-      anchorText
+      (entry&&entry.title)
     );
     if(!title||title.length>100)continue;
     let rawCover="";
@@ -414,6 +418,11 @@ function paginationLinks(body,h) {
     if(/rel=["']next["']|下一页|下页|next/i.test(m[1]+" "+label))found.next=absolute;
   }
   return found;
+}
+function searchResultPage(body) {
+  const title=(/<title[^>]*>([\s\S]*?)<\/title>/i.exec(String(body||""))||[])[1]||"";
+  const m=/(?:第|page\s*)(\d+)\s*(?:页|page)/i.exec(htmlText(title));
+  return m?Number(m[1])||0:0;
 }
 function pagePaths(category,page,links) {
   const bases=CATEGORY_PATHS[str(category)]||[];
@@ -563,7 +572,7 @@ async function searchDramas(keyword,page=1) {
   const q=str(keyword),p=Math.max(1,Math.floor(Number(page)||1));
   if(!q)return {items:[],page:p,hasMore:false};
   // 搜索固定使用用户已确认可直接搜索的线路；诊断只记录页面结构摘要，不输出整页 HTML。
-  const h=SEARCH_HOST;
+  const h=await getHost(false,true);
   const variants=searchKeywordVariants(q);
   let lastError=null;
   for(const term of variants) {
@@ -575,14 +584,18 @@ async function searchDramas(keyword,page=1) {
         searchDiagnostics(first.body,first,term,p,h+firstPath);
         const links=paginationLinks(first.body,h);
         if(links[p])target=links[p];
-        else if(links.next)target=links.next;
-        else {
-          // 无真实分页链接即结束分页，避免重复请求第一页并报 E_PARSE。
-          return {items:[],page:p,hasMore:false};
-        }
+        else if(links.next&&pageNumberFromHref(links.next)===p)target=links.next;
+        else if(p===2)target=firstPath+"2/";
+        else target=firstPath+p+"/";
       }
-      const result=await getText(/^https?:\/\//i.test(target)?target:h+target,h+"/",20000);
-      searchDiagnostics(result.body,result,term,p,/^https?:\/\//i.test(target)?target:h+target);
+      const requestUrl=/^https?:\/\//i.test(target)?target:h+target;
+      const result=await getText(requestUrl,h+"/",20000);
+      searchDiagnostics(result.body,result,term,p,requestUrl);
+      const reportedPage=searchResultPage(result.body);
+      if(p>1&&reportedPage>0&&reportedPage!==p) {
+        host.log("[黄瓜搜索分页异常] requestedPage="+p+" returnedPage="+reportedPage+" url="+requestUrl);
+        return {items:[],page:p,hasMore:false};
+      }
       let candidates=parseSearchCardsDOM(result.body,h);
       const domCount=candidates.length;
       if(candidates.length===0)candidates=parseCards(result.body,h);
@@ -642,7 +655,7 @@ async function getDetail(alias) {
   if(!/^[a-zA-Z0-9-]+$/.test(alias))fail("E_PARSE","黄瓜短剧剧集 ID 无效");
   const numeric=/^\d+$/.test(alias);
   // 搜索结果的数字 ID 始终来自已验证的搜索站点，不能依赖可能丢失的本地 storage 映射。
-  const h=numeric?SEARCH_HOST:(rememberedSearchItemHost(alias)||await getHost());
+  const h=rememberedSearchItemHost(alias)||(numeric?SEARCH_HOST:await getHost());
   const route=numeric?"/video/":"/drama/";
   const url=h+route+encodeURIComponent(alias)+"/";
   const response=await getText(url,h+"/",20000);
@@ -677,7 +690,7 @@ export default {
       const numeric=/^\d+$/.test(p[0]);
       if(numeric&&Number(p[1])!==1)fail("E_NOT_FOUND","该详情页只提供一个可直接播放的正片地址");
       stage="resolve host";
-      const h=numeric?SEARCH_HOST:(rememberedSearchItemHost(p[0])||await getHost());
+      const h=rememberedSearchItemHost(p[0])||(numeric?SEARCH_HOST:await getHost());
       const url=numeric
         ? h+"/video/"+encodeURIComponent(p[0])+"/"
         : h+"/play/"+encodeURIComponent(p[0])+"/"+Number(p[1]);
