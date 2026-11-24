@@ -42,7 +42,7 @@ test("preserves percent-encoded signed URL parameters", async () => {
 });
 
 test("supports escaped slashes and escaped ampersands", async () => {
-  const html = String.raw`html5player.setVideoUrlHigh("https:\/\/cdn.example\/hd.mp4?token=a\\u0026quality=1080p");`;
+  const html = String.raw`html5player.setVideoUrlHigh("https:\/\/cdn.example\/hd.mp4?token=a\u0026quality=1080p");`;
   const result = await loadPlugin(html).play({ episodeId: "/video.fixture123/sample" });
   assert.equal(result.streams.length, 1);
   assert.equal(result.streams[0].url, "https://cdn.example/hd.mp4?token=a&quality=1080p");
