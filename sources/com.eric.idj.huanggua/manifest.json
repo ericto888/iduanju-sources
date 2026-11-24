@@ -2,12 +2,12 @@
   "schema": 1,
   "id": "com.eric.idj.huanggua",
   "name": "黄瓜短剧",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "author": {
     "name": "iDuanJu 社区移植",
     "contact": "https://github.com/ericto888/iduanju-sources"
   },
-  "description": "搜索固定使用已实测可用的 porncz.hzeqbmes.cc 线路，避免错误轮询；分类、详情和播放继续使用动态线路。",
+  "description": "搜索固定使用 porncz.hzeqbmes.cc；兼容搜索页不同卡片结构，按真实剧集链接提取结果。",
   "type": "shortdrama",
   "adult": true,
   "minAppVersion": "1.5",
