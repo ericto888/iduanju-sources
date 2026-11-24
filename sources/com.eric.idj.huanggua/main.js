@@ -60,34 +60,56 @@ async function getText(url,referer,timeout) {
 function readCachedHost() {
   try {
     const v=host.storage.get(CACHE_KEY),p=typeof v==="string"?JSON.parse(v):v;
-    if(p&&typeof p.host==="string"&&allowedHost(p.host))return p.host;
+    const savedAt=Number(p&&p.updatedAt)||0;
+    if(p&&typeof p.host==="string"&&allowedHost(p.host)&&savedAt>0&&Date.now()-savedAt<CACHE_TTL)return p.host;
   } catch(e) {}
   return "";
 }
 function writeCachedHost(v) { try{host.storage.set(CACHE_KEY,JSON.stringify({host:v,updatedAt:Date.now()}));}catch(e){} }
-async function validateHost(c) {
-  for(const path of ["/","/ai-duanju/","/aiduanju","/browse/"]) {
-    try { const p=await getText(c+path,c+"/",12000);if(p.body.includes("黄瓜短剧")&&p.body.includes("/drama/"))return true; }
-    catch(e) {}
+async function validateHost(c,requireSearch) {
+  const paths=requireSearch
+    ? ["/search/video/%E4%B8%8D%E6%93%8D%E4%BB%99/"]
+    : ["/","/ai-duanju/","/aiduanju","/browse/"];
+  for(const path of paths) {
+    try {
+      const p=await getText(c+path,c+"/",12000);
+      if(requireSearch ? isSearchResponse(p.body,p.url) : (p.body.includes("黄瓜短剧")&&p.body.includes("/drama/")))return true;
+    } catch(e) {}
   }
   return false;
 }
-async function getHost(forceRefresh) {
-  if(!forceRefresh&&memoryHost&&Date.now()-memoryHostAt<CACHE_TTL)return memoryHost;
-  if(!forceRefresh){const saved=readCachedHost();if(saved){memoryHost=saved;memoryHostAt=Date.now();return saved;}}
+async function getHost(forceRefresh,requireSearch) {
+  if(!forceRefresh&&memoryHost&&Date.now()-memoryHostAt<CACHE_TTL) {
+    if(!requireSearch||await validateHost(memoryHost,true))return memoryHost;
+    memoryHost="";memoryHostAt=0;
+  }
+  if(!forceRefresh) {
+    const saved=readCachedHost();
+    if(saved&&(!requireSearch||await validateHost(saved,true))) {
+      memoryHost=saved;memoryHostAt=Date.now();return saved;
+    }
+  }
   const candidates=[],seen={};
-  for(const address of [NAV_URL].concat(LEGACY_NAV_URLS)){
-    try{
+  for(const address of [NAV_URL].concat(LEGACY_NAV_URLS)) {
+    try {
       const r=await getText(address,address,15000);
       addCandidate(candidates,seen,r.url);
       addCandidate(candidates,seen,r.headers.location||r.headers.Location||"");
       for(const found of extractCandidates(r.body))addCandidate(candidates,seen,found);
-    }catch(e){}
+    } catch(e) {}
   }
+  // 优先保留最近成功的线路，其次检查站点导航页发现的地址和内置候选域名。
+  addCandidate(candidates,seen,memoryHost);
+  addCandidate(candidates,seen,readCachedHost());
   for(const seed of SEED_HOSTS)addCandidate(candidates,seen,seed);
-  addCandidate(candidates,seen,memoryHost);addCandidate(candidates,seen,readCachedHost());
-  for(const c of candidates){if(await validateHost(c)){memoryHost=c;memoryHostAt=Date.now();writeCachedHost(c);return c;}}
-  fail("E_NETWORK","黄瓜短剧未发现可用线路。请先开启 VPN 刷新最新地址，再关闭 VPN 重试");
+  for(const c of candidates) {
+    if(await validateHost(c,!!requireSearch)) {
+      memoryHost=c;memoryHostAt=Date.now();writeCachedHost(c);return c;
+    }
+  }
+  fail("E_NETWORK",requireSearch
+    ? "黄瓜短剧未发现支持搜索的可用线路，请刷新最新地址后重试"
+    : "黄瓜短剧未发现可用线路。请先开启 VPN 刷新最新地址，再关闭 VPN 重试");
 }
 async function pageWithRefresh(url,referer,validator) {
   try {
@@ -332,41 +354,67 @@ async function listCategory(page,category) {
     throw e;
   }
 }
+function searchKeywordVariants(keyword) {
+  const q=str(keyword).replace(/\s+/g," ").trim();
+  const out=[];
+  const add=v=>{v=str(v);if(v&& !out.includes(v))out.push(v);};
+  add(q);
+  // 黄瓜搜索路由对完整长标题偶尔返回 404；依次尝试标题前缀，兼容站点短词索引。
+  const chars=Array.from(q);
+  if(chars.length>4)add(chars.slice(0,4).join(""));
+  if(chars.length>3)add(chars.slice(0,3).join(""));
+  return out;
+}
 async function searchDramas(keyword,page=1) {
-  const h=await getHost(),q=str(keyword),p=Math.max(1,Math.floor(Number(page)||1));
+  const q=str(keyword),p=Math.max(1,Math.floor(Number(page)||1));
   if(!q)return {items:[],page:p,hasMore:false};
-  const encoded=encodeURIComponent(q);
-  let links={},firstBody="";
-  // 先读取第一页的真实分页链接，避免猜测网站分页规则。
-  if(p>1) {
-    try {
-      firstBody=await pageWithRefresh(h+"/search/video/"+encoded+"/",h+"/",(b,u)=>isSearchResponse(b,u));
-      links=paginationLinks(firstBody,h);
-    } catch(e) {}
-  }
-  const firstPath="/search/video/"+encoded+"/";
-  if(p>1&&!firstBody) {
-    firstBody=await pageWithRefresh(h+firstPath,h+"/",(b,u)=>isSearchResponse(b,u));
-    links=paginationLinks(firstBody,h);
-  }
-  const paths=p===1?[firstPath]:(links[p]?[links[p]]:(links.next?[links.next]:[]));
-  if(!paths.length)fail("E_PARSE","搜索结果页面未提供有效的下一页链接");
+  const variants=searchKeywordVariants(q);
   let lastError=null;
-  for(const path of paths) {
-    try {
-      const url=/^https?:\/\//i.test(path)?path:h+path;
-      const body=await pageWithRefresh(url,h+"/",(b,u)=>isSearchResponse(b,u));
-      const items=parseCards(body,h);
-      if(items.length) {
-        const nextLinks=paginationLinks(body,h);
-        // 黄瓜搜索列表通常每页 10 条；10 条不能误判为最后一页。
-        const hasMore=!!nextLinks.next||Object.keys(nextLinks).some(k=>k!=="next"&&Number(k)>p)||items.length>=10;
-        return {items,page:p,hasMore};
-      }
-      lastError=host.error("E_PARSE","搜索结果页面未解析到剧集");
-    } catch(e) { lastError=e; }
+  for(const term of variants) {
+    let h=await getHost(false,true);
+    const encoded=encodeURIComponent(term),firstPath="/search/video/"+encoded+"/";
+    let firstBody="",links={};
+    if(p>1) {
+      try {
+        firstBody=await pageWithRefresh(h+firstPath,h+"/",(b,u)=>isSearchResponse(b,u));
+        links=paginationLinks(firstBody,h);
+      } catch(e) { lastError=e; }
+    }
+    if(p>1&&!firstBody) {
+      try {
+        h=await getHost(true,true);
+        firstBody=await pageWithRefresh(h+firstPath,h+"/",(b,u)=>isSearchResponse(b,u));
+        links=paginationLinks(firstBody,h);
+      } catch(e) { lastError=e;continue; }
+    }
+    const paths=p===1?[firstPath]:(links[p]?[links[p]]:(links.next?[links.next]:[]));
+    if(!paths.length) {
+      if(p>1)lastError=host.error("E_PARSE","搜索结果页面未提供有效的下一页链接");
+      continue;
+    }
+    for(const path of paths) {
+      try {
+        let url=/^https?:\/\//i.test(path)?path:h+path;
+        let body;
+        try {
+          body=await pageWithRefresh(url,h+"/",(b,u)=>isSearchResponse(b,u));
+        } catch(e) {
+          // 404/非搜索响应触发搜索专用线路刷新；验证条件是该域名的真实搜索页可用。
+          h=await getHost(true,true);
+          url=h+firstPath;
+          body=await pageWithRefresh(url,h+"/",(b,u)=>isSearchResponse(b,u));
+        }
+        const items=parseCards(body,h);
+        if(items.length) {
+          const nextLinks=paginationLinks(body,h);
+          const hasMore=!!nextLinks.next||Object.keys(nextLinks).some(k=>k!=="next"&&Number(k)>p)||items.length>=10;
+          return {items,page:p,hasMore};
+        }
+        lastError=host.error("E_PARSE","搜索结果页面未解析到剧集");
+      } catch(e) { lastError=e; }
+    }
   }
-  throw lastError||host.error("E_PARSE","黄瓜短剧搜索暂不可用");
+  throw lastError||host.error("E_NOT_FOUND","黄瓜短剧没有找到匹配的搜索结果");
 }
 async function getDetail(alias) {
   alias=str(alias);if(!/^[a-zA-Z0-9-]+$/.test(alias))fail("E_PARSE","黄瓜短剧剧集 ID 无效");
