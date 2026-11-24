@@ -229,14 +229,20 @@ function pageNumberFromHref(href) {
   m=query.match(/(?:^|&)(?:page|p)=(\d+)/i);
   return m?Number(m[1]):0;
 }
+function absolutePageHref(h,href) {
+  const value=str(href).replace(/&amp;/g,"&");
+  if(/^https?:\/\//i.test(value))return value;
+  if(value.startsWith("//"))return "https:"+value;
+  if(value.startsWith("/"))return h+value;
+  return h+"/"+value;
+}
 function paginationLinks(body,h) {
   const found={},html=String(body||"");
   const re=/<a\b([^>]*href=["']([^"']+)["'][^>]*)>([\s\S]*?)<\/a>/gi;
   let m;
   while((m=re.exec(html))!==null) {
     const href=str(m[2]);if(!href)continue;
-    let absolute="";
-    try{absolute=host.url.resolve(h+"/",href);}catch(e){continue;}
+    const absolute=absolutePageHref(h,href);
     if(!absolute.startsWith(h+"/"))continue;
     const n=pageNumberFromHref(absolute);
     const label=htmlText(m[3]+" "+m[1]);
@@ -248,6 +254,7 @@ function paginationLinks(body,h) {
 function pagePaths(category,page,links) {
   const bases=CATEGORY_PATHS[str(category)]||[];
   if(links&&links[page])return [links[page]];
+  if(page===2&&links&&links.next)return [links.next];
   const out=[];
   for(const base of bases) {
     if(page===1){out.push(base);continue;}
@@ -303,16 +310,31 @@ async function listCategory(page,category) {
     throw e;
   }
 }
-async function searchDramas(keyword) {
-  const h=await getHost(),q=str(keyword);
-  if(!q)return {items:[],hasMore:false};
-  const paths=["/search?q="+encodeURIComponent(q),"/search?keyword="+encodeURIComponent(q),"/search?wd="+encodeURIComponent(q)];
+async function searchDramas(keyword,page=1) {
+  const h=await getHost(),q=str(keyword),p=Math.max(1,Math.floor(Number(page)||1));
+  if(!q)return {items:[],page:p,hasMore:false};
+  const encoded=encodeURIComponent(q);
+  let links={},firstBody="";
+  if(p>1) {
+    try {
+      firstBody=await pageWithRefresh(h+"/search?q="+encoded,h+"/",b=>b.includes(CARD_SPLIT));
+      links=paginationLinks(firstBody,h);
+    } catch(e) {}
+  }
+  const paths=p===1
+    ? ["/search?q="+encoded,"/search?keyword="+encoded,"/search?wd="+encoded]
+    : (links[p]?[links[p]]:["/search?q="+encoded+"&page="+p,"/search?q="+encoded+"&p="+p,"/search/page-"+p+"?q="+encoded]);
   let lastError=null;
   for(const path of paths) {
     try {
-      const body=await pageWithRefresh(h+path,h+"/",b=>b.includes(CARD_SPLIT));
+      const url=/^https?:\/\//i.test(path)?path:h+path;
+      const body=firstBody&&p===1?firstBody:await pageWithRefresh(url,h+"/",b=>b.includes(CARD_SPLIT));
       const items=parseCards(body,h);
-      if(items.length)return {items,hasMore:false};
+      if(items.length) {
+        const nextLinks=paginationLinks(body,h);
+        const hasMore=!!nextLinks.next||Object.keys(nextLinks).some(k=>k!=="next"&&Number(k)>p)||items.length>=12;
+        return {items,page:p,hasMore};
+      }
       lastError=host.error("E_PARSE","搜索结果页面未解析到剧集");
     } catch(e) { lastError=e; }
   }
@@ -331,7 +353,7 @@ async function getDetail(alias) {
 export default {
   async home(){return{categories:CATEGORIES.filter(c=>str(c.id)!==""&&str(c.name)!=="推荐")};},
   async category({id="",page=1}){const r=await listCategory(page,id);return{items:r.items,page:Math.max(1,Number(page)||1),hasMore:r.hasMore};},
-  async search({keyword}){return await searchDramas(keyword);},
+  async search({keyword,page=1}){return await searchDramas(keyword,page);},
   async detail({id}){const r=await getDetail(id);return{title:r.title,cover:r.cover,desc:r.desc,lines:[{name:"默认线路",episodes:r.chapters}]};},
   async play({episodeId}){
     let stage="validate episode";
