@@ -376,7 +376,7 @@ function parsePlayUrl(body) {
   const mp4=/(?:https?:)?\/\/[^"'\s<>]+\.mp4(?:\?[^"'\s<>]*)?/i.exec(html);
   return mp4?unescapePlayUrl(mp4[0]):"";
 }
-const CATEGORY_CACHE_PREFIX = "huanggua.category.v2.";
+const CATEGORY_CACHE_PREFIX = "huanggua.category.v3."; // 分页路由修复后废弃旧版错误分页缓存
 const CATEGORY_CACHE_TTL = 10 * 60 * 1000;
 const CATEGORY_PATHS = {
   yuanchuang: ["/browse?line=yuanchuang"],
@@ -472,23 +472,25 @@ function searchResultPage(body) {
 }
 function pagePaths(category,page,links) {
   const id=str(category),bases=CATEGORY_PATHS[id]||[];
-  // 黄瓜短剧分类页真实分页格式：/browse/page-2?line=分类ID；
-  // 推荐（全部浏览）不带 line 参数：/browse/page-2。
   if(page===1)return bases.slice();
-  if(links&&links[page])return [links[page]];
-  if(page===2&&links&&links.next)return [links.next];
-  const suffix=id==="browse"?"":("?line="+encodeURIComponent(id));
-  return ["/browse/page-"+page+suffix];
+  // 已确认的站点分页路由：全部浏览不带 line，具体分类必须保留 line 参数。
+  // 先请求确定的规范地址，避免首页分页锚点缺失/过期时把翻页请求卡在第一页。
+  const suffix=id==="browse"?"":"?line="+encodeURIComponent(id);
+  const canonical="/browse/page-"+page+suffix;
+  const candidates=[canonical];
+  if(links&&links[page]&&!candidates.includes(links[page]))candidates.push(links[page]);
+  if(page===2&&links&&links.next&&!candidates.includes(links.next))candidates.push(links.next);
+  return candidates;
 }
 async function fetchCategoryPage(h,category,page) {
   const bases=CATEGORY_PATHS[str(category)]||[];
   let links={};
   if(page>1) {
-    // 优先读取站点页面给出的真实分页链接；没有分页锚点时再尝试已知路由格式。
+    // 仅作备用：从第一页提取站点自带分页链接；不再依赖该请求成功才能翻页。
     for(const base of bases) {
       try {
-        const first=await pageWithRefresh(h+base,h+"/",b=>parseCards(b,h).length>0);
-        links=paginationLinks(first,h);
+        const first=await getText(h+base,h+"/");
+        links=paginationLinks(first.body,h);
         if(links[page]||links.next)break;
       } catch(e) {}
     }
