@@ -15,8 +15,58 @@ function previousMonth(){const d=new Date();d.setUTCDate(1);d.setUTCMonth(d.getU
 function categoryPath(id,page){const p=Math.max(1,Math.floor(Number(page)||1));if(id==="new")return p===1?"/":"/new/"+(p-1);if(id==="best"){const m=previousMonth();return p===1?"/best/"+m:"/best/"+m+"/"+(p-1);}fail("E_PARSE","XVideos 分类无效");}
 async function request(url,referer,timeout){const r=await host.http.request({url,headers:{"User-Agent":UA,"Referer":referer||BASE+"/"},timeout:timeout||25000});if(!r||r.status<200||r.status>=300)fail(r&&r.status===404?"E_NOT_FOUND":"E_HTTP","XVideos 请求失败 HTTP "+(r?r.status:0)+"："+url);return{body:str(r.body),url:str(r.url)||url,headers:r.headers||{}};}
 function parseDuration(s){const t=cleanText(s);if(/^\d+:\d{2}(?::\d{2})?$/.test(t)){const a=t.split(":").map(Number);return a.length===3?a[0]*3600+a[1]*60+a[2]:a[0]*60+a[1];}let n=0,m;if((m=/(\d+)\s*h/i.exec(t)))n+=Number(m[1])*3600;if((m=/(\d+)\s*min/i.exec(t)))n+=Number(m[1])*60;if((m=/(\d+)\s*sec/i.exec(t)))n+=Number(m[1]);return n;}
-function parseList(html,page){const chunks=String(html||"").split("thumb-block").slice(1),seen=Object.create(null),items=[];for(const c of chunks){const card=c.slice(0,5000),link=groups('href="(/video[.-]([a-z0-9]+)/[^"]*)"',card);if(!link||seen[link[1]])continue;const path=link[1];const tm=groups('<p class="title">\\s*<a[^>]*title="([^"]+)"',card)||groups('\\balt="([^"]+)"',card)||groups('<a[^>]*href="/video[.-][a-z0-9]+/[^"]*"[^>]*\\btitle="([^"]+)"',card);const title=tm?cleanText(tm[1]):"";if(!title||!safeTitle(title))continue;const cm=groups('(data-src|data-original|src)="(https?://[^"]+)"',card),cover=cm&&!cm[2].includes("blank.gif")?cm[2]:"";const dm=groups('class="duration">([^<]+)<',card)||groups('(\\d+\\s*(?:h|min|sec)\\b[^<]{0,12})',(groups('class="metadata">(.*?)</p>',card)||["",""])[1]);const am=groups('<span class="name">([^<]+)</span>',card),duration=dm?parseDuration(dm[1]):0,author=am?cleanText(am[1]):"";const item={id:path,title,remarks:duration>0?Math.floor(duration/60)+"分钟":""};if(cover)item.cover=cover;if(author)item.author=author;items.push(item);seen[path]=true;}return{items,page:Math.max(1,Number(page)||1),hasMore:items.length>0};}
-function videoPath(id){let v=str(id);if(/^https?:\/\//i.test(v)){const m=/^https?:\/\/(?:www\.)?xvideos\.com(\/video[.-][a-z0-9]+(?:\/[a-z0-9._~-]*)?)/i.exec(v);if(!m)fail("E_PARSE","XVideos 视频 ID 无效");v=m[1];}v=v.split(/[?#]/,1)[0];if(!v.startsWith("/"))v="/"+v;if(!/^\/video[.-][a-z0-9]+(?:\/[a-z0-9._~-]*)?\/?$/i.test(v))fail("E_PARSE","XVideos 视频 ID 无效");return v;}
+function absURL(u){let v=str(u).replace(/&amp;/gi,"&");if(!v||/^(?:data:|blob:|javascript:)/i.test(v))return"";if(v.startsWith("//"))return"https:"+v;if(v.startsWith("/"))return BASE+v;if(/^https?:\/\//i.test(v))return v;return"";}
+function attr(tag,name){const re=new RegExp("(?:^|\\\\s)"+name+"\\\\s*=\\\\s*([\\\"'])(.*?)\\\\1","i");const m=re.exec(tag);return m?m[2]:"";}
+function parseList(html,page){
+ const source=String(html||""),chunks=source.split(/thumb-block/i).slice(1),seen=Object.create(null),items=[];
+ for(const raw of chunks){
+  const card=raw.slice(0,9000);
+  const anchors=[...card.matchAll(/<a\b[^>]*\bhref\s*=\s*(['"])(.*?)\1[^>]*>/gi)];
+  let path="";
+  for(const a of anchors){
+   const href=str(a[2]).replace(/&amp;/gi,"&");
+   const m=/^(?:https?:\/\/(?:www\.)?xvideos\.com)?(\/video[.-][a-z0-9]+(?:\/[^?#"'<>\\\s]*)?)/i.exec(href);
+   if(m){path=m[1];break;}
+  }
+  if(!path||seen[path])continue;
+  const titleCandidates=[];
+  for(const a of anchors){const t=attr(a[0],"title");if(t)titleCandidates.push(t);}
+  const titleMatch=/<(?:p|div|span)[^>]*class\s*=\s*["'][^"']*\btitle\b[^"']*["'][^>]*>([\s\S]{0,800}?)<\/(?:p|div|span)>/i.exec(card);
+  if(titleMatch){const t=/<a\b[^>]*>([\s\S]*?)<\/a>/i.exec(titleMatch[1]);if(t)titleCandidates.unshift(t[1].replace(/<[^>]*>/g," "));}
+  const imgTags=[...card.matchAll(/<img\b[^>]*>/gi)].map(x=>x[0]);
+  let cover="";
+  for(const tag of imgTags){
+   const candidates=["data-src","data-original","data-thumb","data-lazy-src","src"];
+   for(const key of candidates){const v=absURL(attr(tag,key));if(v&&!/blank|placeholder|transparent|pixel/i.test(v)){cover=v;break;}}
+   if(cover)break;
+   const srcset=attr(tag,"data-srcset")||attr(tag,"srcset");
+   if(srcset){const first=srcset.split(",")[0].trim().split(/\s+/)[0];cover=absURL(first);if(cover)break;}
+  }
+  const title=cleanText(titleCandidates.find(x=>cleanText(x))||"");
+  if(!title||!safeTitle(title))continue;
+  const dm=/<[^>]*class\s*=\s*["'][^"']*duration[^"']*["'][^>]*>([\s\S]*?)<\/[^>]+>/i.exec(card);
+  const duration=dm?parseDuration(dm[1].replace(/<[^>]*>/g," ")):0;
+  const item={id:path,title,remarks:duration>0?Math.floor(duration/60)+"分钟":""};
+  if(cover){item.cover=cover;item.coverHeaders={Referer:BASE+"/", "User-Agent":UA};}
+  items.push(item);seen[path]=true;
+ }
+ return{items,page:Math.max(1,Number(page)||1),hasMore:items.length>0};
+}
+function videoPath(id){
+ let v=str(id);
+ if(v.startsWith("[object Object]")||!v)fail("E_PARSE","XVideos 视频 ID 无效（收到空值或非字符串）");
+ v=v.replace(/&amp;/gi,"&").replace(/\\\//g,"/");
+ if(/^https?:\/\//i.test(v)){
+  const m=/^https?:\/\/(?:www\.)?xvideos\.com(\/video[.-][a-z0-9]+(?:\/[^?#"'<>\\\s]*)?)/i.exec(v);
+  if(!m)fail("E_PARSE","XVideos 视频 ID 无效："+v.slice(0,160));
+  v=m[1];
+ }
+ v=v.split(/[?#]/,1)[0];
+ if(/^video[.-]/i.test(v))v="/"+v;
+ if(!v.startsWith("/"))v="/"+v;
+ if(!/^\/video[.-][a-z0-9]+(?:\/[a-z0-9._~%+-]*)?\/?$/i.test(v))fail("E_PARSE","XVideos 视频 ID 无效："+v.slice(0,160));
+ return v;
+}
 function playerString(raw){let v=cleanText(raw).trim().replace(/\\\//g,"/").replace(/\\u0026/gi,"&").replace(/\\x26/gi,"&").replace(/\\'/g,"'").replace(/\\"/g,'"').replace(/\\\\/g,"\\");return v.replace(/\\u([0-9a-f]{4})/gi,(_,h)=>String.fromCharCode(parseInt(h,16)));}
 function playerCall(fn,html){const p="html5player\\s*\\.\\s*"+escRE(fn)+"\\s*\\(\\s*",patterns=[p+"'((?:\\\\.|[^'\\\\])*)'\\s*\\)",p+'"((?:\\\\.|[^"\\\\])*)"\\s*\\)'];for(const re of patterns){const m=groups(re,html);if(m&&m[1])return playerString(m[1]);}return"";}
 function mediaStreams(html,page){const out=[],seen=Object.create(null);function add(raw,name,format){let u=playerString(raw);if(u.startsWith("//"))u="https:"+u;if(!/^https?:\/\//i.test(u))return;try{u=decodeURIComponent(u.replace(/\+/g,"%20"));}catch(e){}if(seen[u])return;seen[u]=true;out.push({name,url:u,format,headers:{Referer:page,"User-Agent":UA}});}const h=playerCall("setVideoHLS",html);if(h)add(h,"自动 · HLS","hls");const hi=playerCall("setVideoUrlHigh",html);if(hi)add(hi,"高清 MP4","mp4");const lo=playerCall("setVideoUrlLow",html);if(lo)add(lo,"标清 MP4","mp4");const flv=[/(?:[?&])flv_url=([^&"'\s<>]+)/i,/flv_url\s*[:=]\s*'([^']*)'/i,/flv_url\s*[:=]\s*"([^"]*)"/i];for(const re of flv){const m=re.exec(html);if(m&&m[1]){let x=m[1].replace(/\+/g,"%20");try{x=decodeURIComponent(x);}catch(e){}add(x,"原画 · 直链","mp4");if(out.length)break;}}const fieldSets=[[/\b(?:hls|video_hls|hls_url|hlsUrl)\b\s*[:=]\s*["']([^"']+)["']/gi,"自动 · HLS","hls"],[/\b(?:flv_url|video_url|videoUrl|urlHigh|urlLow|contentUrl)\b\s*[:=]\s*["']([^"']+)["']/gi,"直链 · MP4","mp4"]];for(const [re,name,fmt] of fieldSets){let m;while((m=re.exec(html))!==null)add(m[1],name,fmt);}const normalized=String(html||"").replace(/\\\//g,"/"),rawRe=/(?:https?:)?\/\/[^"'\s<>]+?\.(?:m3u8|mp4)(?:\?[^"'\s<>]*)?/gi;let m;while((m=rawRe.exec(normalized))!==null){const u=m[0].startsWith("//")?"https:"+m[0]:m[0],hlsLike=/\.m3u8(?:\?|$)/i.test(u);add(u,hlsLike?"自动 · HLS":"直链 · MP4",hlsLike?"hls":"mp4");}return out;}
