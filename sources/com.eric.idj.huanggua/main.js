@@ -434,6 +434,17 @@ async function listCategory(page,category) {
     throw e;
   }
 }
+function rememberSearchItemHost(items,siteHost) {
+  for(const item of items||[]) {
+    const id=str(item&&item.id);
+    if(!/^[a-zA-Z0-9-]+$/.test(id))continue;
+    try { host.storage.set(SEARCH_ITEM_HOST_PREFIX+id,siteHost); } catch(e) {}
+  }
+}
+function rememberedSearchItemHost(id) {
+  try { const value=str(host.storage.get(SEARCH_ITEM_HOST_PREFIX+str(id))); return allowedHost(value)?value:""; }
+  catch(e) { return ""; }
+}
 function searchKeywordVariants(keyword) {
   const q=str(keyword).replace(/\s+/g," ").trim();
   const out=[];
@@ -446,6 +457,7 @@ function searchKeywordVariants(keyword) {
   return out;
 }
 const SEARCH_HOST = "https://porncz.hzeqbmes.cc";
+const SEARCH_ITEM_HOST_PREFIX = "huanggua.searchItemHost.";
 
 
 function searchDiagnostics(body, response, term, page, requestedUrl) {
@@ -510,8 +522,8 @@ async function searchDramas(keyword,page=1) {
         if(links[p])target=links[p];
         else if(links.next)target=links.next;
         else {
-          lastError=host.error("E_PARSE","搜索结果页面未提供有效的下一页链接");
-          continue;
+          // 无真实分页链接即结束分页，避免重复请求第一页并报 E_PARSE。
+          return {items:[],page:p,hasMore:false};
         }
       }
       const result=await getText(/^https?:\/\//i.test(target)?target:h+target,h+"/",20000);
@@ -523,7 +535,8 @@ async function searchDramas(keyword,page=1) {
         " hasArticleCards="+hasDramaCards(result.body)+" payload="+!!PAYLOAD_RE.test(result.body));
       if(items.length) {
         const nextLinks=paginationLinks(result.body,h);
-        const hasMore=!!nextLinks.next||Object.keys(nextLinks).some(k=>k!=="next"&&Number(k)>p)||items.length>=10;
+        rememberSearchItemHost(items,h);
+        const hasMore=!!nextLinks.next||Object.keys(nextLinks).some(k=>k!=="next"&&Number(k)>p);
         return {items,page:p,hasMore};
       }
       lastError=host.error("E_PARSE","搜索结果页面未解析到剧集");
@@ -536,8 +549,12 @@ async function searchDramas(keyword,page=1) {
 }
 async function getDetail(alias) {
   alias=str(alias);if(!/^[a-zA-Z0-9-]+$/.test(alias))fail("E_PARSE","黄瓜短剧剧集 ID 无效");
-  const h=await getHost(),url=h+"/video/"+encodeURIComponent(alias)+"/";
-  const body=await pageWithRefresh(url,h+"/",b=>/<h1\b/i.test(b)),tm=H1_RE.exec(body),title=tm?htmlText(tm[1]):"";
+  const itemHost=rememberedSearchItemHost(alias);
+  const h=itemHost||await getHost();
+  const route=/^\d+$/.test(alias)?"/video/":"/drama/";
+  const url=h+route+encodeURIComponent(alias)+"/";
+  const body=itemHost?(await getText(url,h+"/",20000)).body:await pageWithRefresh(url,h+"/",b=>/<h1\b/i.test(b));
+  const tm=H1_RE.exec(body),title=tm?htmlText(tm[1]):"";
   if(!title)fail("E_PARSE","黄瓜短剧未返回剧集信息");
   const dm=DESC_RE.exec(body),payload=parsePayload(body)[alias];let cover=payload?coverAddress(h,payload.cover,payload.fallback):"";
   if(!cover){const image=cardImage(body);if(image.cover)cover=coverAddress(h,image.cover,"");}
@@ -555,9 +572,10 @@ export default {
       const p=str(episodeId).split("/");
       if(p.length!==2||!/^[a-zA-Z0-9-]+$/.test(p[0])||!/^\d+$/.test(p[1]))fail("E_PARSE","黄瓜短剧集 ID 无效");
       stage="resolve host";
-      const h=await getHost(),url=h+"/play/"+encodeURIComponent(p[0])+"/"+Number(p[1]);
+      const itemHost=rememberedSearchItemHost(p[0]);
+      const h=itemHost||await getHost(),url=h+"/play/"+encodeURIComponent(p[0])+"/"+Number(p[1]);
       stage="fetch play page";
-      const body=await pageWithRefresh(url,url,b=>!!parsePlayUrl(b));
+      const body=itemHost?(await getText(url,url,20000)).body:await pageWithRefresh(url,url,b=>!!parsePlayUrl(b));
       stage="parse media URL";
       const media=parsePlayUrl(body);
       if(!media)fail("E_PARSE","黄瓜短剧没有返回播放地址");
