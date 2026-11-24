@@ -27,8 +27,8 @@
       "manifest": "https://raw.githubusercontent.com/ericto888/iduanju-sources/main/sources/com.eric.idj.huanggua/manifest.json",
       "type": "shortdrama",
       "adult": true,
-      "version": "1.3.0",
-      "description": "黄瓜短剧：修复数字 ID 详情线路错配，支持详情页内嵌媒体地址直接播放。",
+      "version": "1.3.1",
+      "description": "黄瓜短剧：修复安装解析错误及数字 ID 详情线路错配，支持详情页内嵌媒体地址直接播放。",
       "category": "shortdrama",
       "author": "iDuanJu 社区移植"
     },
