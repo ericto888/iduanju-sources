@@ -27,8 +27,8 @@
       "manifest": "https://raw.githubusercontent.com/ericto888/iduanju-sources/main/sources/com.eric.idj.huanggua/manifest.json",
       "type": "shortdrama",
       "adult": true,
-      "version": "1.1.4",
-      "description": "黄瓜短剧：修复分类分页与搜索，兼容临时域名及新版分类路由。",
+      "version": "1.1.5",
+      "description": "黄瓜短剧：修复分类分页与搜索翻页，兼容新版分类路由和临时域名。",
       "category": "shortdrama",
       "author": "iDuanJu 社区移植"
     },
