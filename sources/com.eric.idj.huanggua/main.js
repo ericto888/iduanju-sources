@@ -90,14 +90,21 @@ async function getHost(forceRefresh) {
   fail("E_NETWORK","黄瓜短剧未发现可用线路。请先开启 VPN 刷新最新地址，再关闭 VPN 重试");
 }
 async function pageWithRefresh(url,referer,validator) {
-  try{const r=await getText(url,referer);if(!validator||validator(r.body))return r.body;}catch(e){
+  try {
+    const r=await getText(url,referer);
+    if(!validator||validator(r.body,r.url,r))return r.body;
+  } catch(e) {
     // 404 表示该集在当前线路确实不存在，不应刷新线路后重复请求同一个失效集数。
     if(e&&e.code==="E_NOT_FOUND")throw e;
     if(/HTTP 404/.test(String(e&&e.message||e)))throw e;
   }
-  const fresh=await getHost(true),m=/^https?:\/\/[^/]+(\/[^?#]*)?(?:[?#].*)?$/i.exec(url),path=m&&m[1]?m[1]:"/";
-  const r=await getText(fresh+path,fresh+"/");
-  if(validator&&!validator(r.body))fail("E_PARSE","黄瓜短剧最新地址已刷新，但页面结构仍不可用");
+  // 刷新线路时必须保留原请求的完整路径和查询参数，不能把 /search?q=剧名
+  // 丢成 /search，否则站点可能返回首页推荐列表并被误认为搜索结果。
+  const fresh=await getHost(true);
+  const m=/^https?:\/\/[^/]+(\/[^?#]*)?(\?[^#]*)?/i.exec(url);
+  const target=(m&&m[1]?m[1]:"/")+(m&&m[2]?m[2]:"");
+  const r=await getText(fresh+target,fresh+"/");
+  if(validator&&!validator(r.body,r.url,r))fail("E_PARSE","黄瓜短剧最新地址已刷新，但页面结构仍不可用");
   return r.body;
 }
 
@@ -137,6 +144,12 @@ function cardImage(segment) {
 }
 function hasDramaCards(body) {
   return /<article\b(?=[^>]*\bdata-xpch=["']card-drama["'])/i.test(String(body||""));
+}
+function isSearchResponse(body,responseUrl) {
+  // 首页推荐同样使用 card-drama 卡片，不能仅凭卡片存在就认定搜索成功。
+  // 搜索结果必须仍来自 /search 路由；若请求被重定向到首页/分类页则拒绝。
+  const path=String(responseUrl||"").replace(/^https?:\/\/[^/]+/i,"").split(/[?#]/)[0];
+  return hasDramaCards(body)&&/\/search(?:\/|$)/i.test(path);
 }
 function parseCards(body,siteHost) {
   // 黄瓜新版卡片的剧名优先位于 aria-label；兼容 img alt、Nuxt payload 和标题属性。
@@ -292,7 +305,7 @@ async function fetchCategoryPage(h,category,page) {
   for(const target of candidates) {
     try {
       const url=/^https?:\/\//i.test(target)?target:h+target;
-      const body=await pageWithRefresh(url,h+"/",b=>hasDramaCards(b));
+      const body=await pageWithRefresh(url,h+"/",(b,u)=>isSearchResponse(b,u));
       const items=parseCards(body,h);
       if(items.length) {
         const nextLinks=paginationLinks(body,h);
@@ -328,7 +341,7 @@ async function searchDramas(keyword,page=1) {
   // 先读取第一页的真实分页链接，避免猜测网站分页规则。
   if(p>1) {
     try {
-      firstBody=await pageWithRefresh(h+"/search?q="+encoded,h+"/",b=>hasDramaCards(b));
+      firstBody=await pageWithRefresh(h+"/search?q="+encoded,h+"/",(b,u)=>isSearchResponse(b,u));
       links=paginationLinks(firstBody,h);
     } catch(e) {}
   }
@@ -346,7 +359,7 @@ async function searchDramas(keyword,page=1) {
   for(const path of paths) {
     try {
       const url=/^https?:\/\//i.test(path)?path:h+path;
-      const body=await pageWithRefresh(url,h+"/",b=>hasDramaCards(b));
+      const body=await pageWithRefresh(url,h+"/",(b,u)=>isSearchResponse(b,u));
       const items=parseCards(body,h);
       if(items.length) {
         const nextLinks=paginationLinks(body,h);
