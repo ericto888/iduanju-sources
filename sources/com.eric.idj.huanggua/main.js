@@ -5,8 +5,8 @@ const CACHE_KEY = "huanggua.latestHost.v1";
 const CACHE_TTL = 30 * 60 * 1000;
 const SEED_HOSTS = ["https://hgdj17.com","https://hgdjb15.com","https://hgdj1.app","https://abc.ywwegfkd.cc","https://qwer.ywwegfkd.cc","https://xyz.ywwegfkd.cc","https://mkqjue.eyrkjyudz.cc","https://porncz.eyrkjyudz.cc","https://rixgqa.eyrkjyudz.cc","https://porncz.hzeqbmes.cc"];
 const ALLOWED_SUFFIXES = ["hgdju.com","hgdja1.com","hgdj1.app","hgdj17.com","hgdjb15.com","ywwegfkd.cc","eyrkjyudz.cc","hzeqbmes.cc"];
-const CATEGORIES = [{id:"aiduanju",name:"AI短剧"},{id:"manju",name:"AI漫剧"},{id:"mogai",name:"AI魔改"},{id:"zhenren",name:"真人短剧"},{id:"yuanchuang",name:"原创短剧"},{id:"browse",name:"全部"}];
-const CATEGORY_IDS = ["","aiduanju","manju","mogai","zhenren","yuanchuang","browse"];
+const CATEGORIES = [{id:"yuanchuang",name:"原创短剧"},{id:"aiduanju",name:"AI短剧"},{id:"mogai",name:"AI魔改"},{id:"manju",name:"AI漫剧"},{id:"zhenren",name:"AI真人短剧"},{id:"browse",name:"全部剧集"}];
+const CATEGORY_IDS = ["yuanchuang","aiduanju","mogai","manju","zhenren","browse"];
 const CARD_SPLIT = '<article data-xpch="card-drama"';
 const ALIAS_RE = /href=["\']\/drama\/([a-zA-Z0-9_-]+)["\']/i;
 const IMG_TAG_RE = /<img\b[^>]*>/gi;
@@ -28,6 +28,17 @@ function htmlText(v) {
     .replace(/&#(\d+);/g,(m,n)=>String.fromCodePoint(parseInt(n,10))).replace(/&nbsp;/gi," ")
     .replace(/&amp;/gi,"&").replace(/&lt;/gi,"<").replace(/&gt;/gi,">").replace(/&quot;/gi,'"')
     .replace(/&#39;/g,"'").replace(/\s+/g," ").trim();
+}
+function validDramaTitle(value) {
+  const title=htmlText(value);
+  if(!title||title.length>100)return "";
+  // 频道/标签组件可能把“都市标签短剧”等文案误写入卡片 aria-label。
+  if(/^(?:都市|现代|古风|古装|校园|熟女|原创|魔改|AI短剧|AI漫剧|真人短剧|AI真人短剧)(?:标签)?(?:短剧|剧集|频道|作品)?$/i.test(title))return "";
+  return title;
+}
+function chooseDramaTitle(values) {
+  for(const value of values||[]){const title=validDramaTitle(value);if(title)return title;}
+  return "";
 }
 function fail(code,message) { throw host.error(code,message); }
 function allowedHost(value) {
@@ -227,7 +238,7 @@ function parseCards(body,siteHost) {
     const aria=(/aria-label=["']([^"']+)["']/i.exec(segment)||[])[1]||"";
     const titleAttr=(/(?:data-title|title)=["']([^"']+)["']/i.exec(segment)||[])[1]||"";
     const heading=(/<(?:h[1-6]|span|div)\b[^>]*>([\s\S]*?)<\/(?:h[1-6]|span|div)>/i.exec(segment)||[])[1]||"";
-    const title=str(htmlText(aria).replace(/\s*详情\s*$/,"")||image.title||(entry&&entry.title)||htmlText(titleAttr)||htmlText(heading));
+    const title=chooseDramaTitle([entry&&entry.title,titleAttr,image.title,heading,htmlText(aria).replace(/\s*详情\s*$/,"")]);
     if(!title)continue;
     let cover=image.cover?coverAddress(siteHost,image.cover,""):"";if(!cover&&entry)cover=coverAddress(siteHost,entry.cover,entry.fallback);
     const ep=EPISODE_RE.exec(segment),heat=HEAT_RE.exec(segment),count=ep?Number(ep[1]):(entry?entry.episodes:0);
@@ -252,7 +263,7 @@ function parseCards(body,siteHost) {
       const aria=(/\baria-label=["']([^"']+)["']/i.exec(attrs)||[])[1]||"";
       const titleAttr=(/\btitle=["']([^"']+)["']/i.exec(attrs)||[])[1]||"";
       const entry=payload[alias]||null;
-      const title=str(htmlText(aria)||htmlText(titleAttr)||htmlText(alt)||(entry&&entry.title)||htmlText(inner));
+      const title=chooseDramaTitle([entry&&entry.title,alt,titleAttr,aria,inner]);
       if(!title||title.length>100)continue;
       const context=String(body||"").slice(Math.max(0,match.index-500),Math.min(String(body||"").length,linkRe.lastIndex+700));
       const image=cardImage(context);
@@ -289,12 +300,12 @@ function parseSearchCardsDOM(body,siteHost) {
     // 只有带封面或明确标题属性的链接才视为结果卡片，禁止用任意链接文本兜底。
     if(!img&&!ariaLabel&&!titleAttr)continue;
     const anchorText=anchor.text();
-    const title=str(
-      ariaLabel ||
-      titleAttr ||
-      (img?htmlText(img.attr("alt")):"") ||
-      (entry&&entry.title)
-    );
+    const title=chooseDramaTitle([
+      entry&&entry.title,
+      img?img.attr("alt"):"",
+      titleAttr,
+      ariaLabel
+    ]);
     if(!title||title.length>100)continue;
     let rawCover="";
     if(img) rawCover=img.attr("data-src")||img.attr("data-original")||img.attr("data-lazy-src")||img.attr("src")||"";
@@ -358,13 +369,13 @@ function parsePlayUrl(body) {
 const CATEGORY_CACHE_PREFIX = "huanggua.category.v2.";
 const CATEGORY_CACHE_TTL = 10 * 60 * 1000;
 const CATEGORY_PATHS = {
-  "": ["/browse/", "/browse", "/"],
+  "": ["/browse?line=all", "/browse?line=", "/browse"],
   aiduanju: ["/ai-duanju/", "/aiduanju/", "/aiduanju"],
   manju: ["/ai-manju/", "/manju/", "/manju"],
   mogai: ["/ai-mogai/", "/mogai/", "/mogai"],
   zhenren: ["/zhenren/", "/zhenren"],
   yuanchuang: ["/yuanchuang/", "/yuanchuang"],
-  browse: ["/browse/", "/browse", "/"]
+  browse: ["/browse?line=all", "/browse?line=", "/browse"]
 };
 
 function cacheHostKey(h) {
@@ -431,6 +442,10 @@ function pagePaths(category,page,links) {
   const out=[];
   for(const base of bases) {
     if(page===1){out.push(base);continue;}
+    if(base.includes("?")) {
+      out.push(base+"&page="+page,base+"&p="+page);
+      continue;
+    }
     const root=base.endsWith("/")?base:base+"/";
     // 兼容当前站点的 /ai-duanju/41/ 与旧版 /aiduanju/page-2 两类路由。
     out.push(root+page+"/",root+"page-"+page,root+"page-"+page+"/");

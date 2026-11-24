@@ -27,8 +27,8 @@
       "manifest": "https://raw.githubusercontent.com/ericto888/iduanju-sources/main/sources/com.eric.idj.huanggua/manifest.json",
       "type": "shortdrama",
       "adult": true,
-      "version": "1.3.6",
-      "description": "黄瓜短剧：切换新版主站搜索，按真实剧集卡片解析并过滤无关推荐，支持搜索分页。",
+      "version": "1.3.7",
+      "description": "黄瓜短剧：对齐新版主站频道分类与全部剧集筛选，修复剧名被标签文案覆盖，支持分页。",
       "category": "shortdrama",
       "author": "iDuanJu 社区移植"
     },
