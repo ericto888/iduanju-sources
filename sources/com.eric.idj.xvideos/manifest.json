@@ -2,12 +2,12 @@
   "schema": 1,
   "id": "com.eric.idj.xvideos",
   "name": "XVideos",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "author": {
     "name": "iDuanJu 社区移植",
     "contact": "https://github.com/ericto888/iduanju-sources"
   },
-  "description": "XVideos 长视频站源插件。支持最新、上月最佳、搜索、详情和 HLS/MP4 播放；修复视频链接兼容、封面懒加载地址提取及详情 ID 规范化，支持站源商店更新。",
+  "description": "XVideos 长视频站源插件。支持最新、上月最佳、搜索、详情和 HLS/MP4 播放；修复多段式视频路径校验，兼容视频 ID 后含数字目录和标题路径，支持站源商店更新。",
   "type": "video",
   "adult": true,
   "minAppVersion": "1.5",
