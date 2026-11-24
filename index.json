@@ -38,8 +38,8 @@
       "manifest": "https://raw.githubusercontent.com/ericto888/iduanju-sources/main/sources/com.eric.idj.xvideos/manifest.json",
       "type": "video",
       "adult": true,
-      "version": "1.0.8",
-      "description": "XVideos：移植 guoapp-sources 播放地址解析策略，兼容播放器方法、配置字段、mediaDefinitions、sources 与 flv_url。",
+      "version": "1.0.9",
+      "description": "XVideos：修复不同播放地址因清晰度名称相同而被误去重；保留多条线路，准确标注高清/标清及明确分辨率。",
       "category": "video",
       "author": "iDuanJu 社区移植"
     }
