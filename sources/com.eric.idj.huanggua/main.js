@@ -437,24 +437,66 @@ function searchKeywordVariants(keyword) {
 }
 const SEARCH_HOST = "https://porncz.hzeqbmes.cc";
 
+
+function searchDiagnostics(body, response, term, page, requestedUrl) {
+  const html=String(body||"");
+  const title=(/<title[^>]*>([\s\S]*?)<\/title>/i.exec(html)||[])[1]||"";
+  const hrefs=[],hrefRe=/<a\b[^>]*\bhref\s*=\s*["']([^"']+)["'][^>]*>/gi;
+  let m;
+  while((m=hrefRe.exec(html))!==null&&hrefs.length<18)hrefs.push(m[1].replace(/&amp;/g,"&"));
+  const drama=hrefs.filter(v=>/drama|detail|video|play/i.test(v));
+  const cardClasses=[];
+  const classRe=/\bclass\s*=\s*["']([^"']+)["']/gi;
+  while((m=classRe.exec(html))!==null&&cardClasses.length<30) {
+    const c=m[1];
+    if(/card|drama|video|item|result|search/i.test(c)&&!cardClasses.includes(c))cardClasses.push(c);
+  }
+  const scripts=[];
+  const scriptRe=/<script\b([^>]*)>/gi;
+  while((m=scriptRe.exec(html))!==null&&scripts.length<12) {
+    const attrs=m[1];
+    const id=(/\bid=["']([^"']+)/i.exec(attrs)||[])[1]||"";
+    const type=(/\btype=["']([^"']+)/i.exec(attrs)||[])[1]||"";
+    scripts.push((id?"id="+id:"")+(type?" type="+type:"")||"script");
+  }
+  const bodyText=htmlText(html).slice(0,360);
+  let dom="dom=unavailable";
+  try {
+    const root=host.html.parse(html);
+    const all=root.select("a");
+    const matching=root.select("a[href*='/drama/']");
+    dom="domAnchors="+(all&&typeof all.length==="number"?all.length:"?")+
+      " domDrama="+(matching&&typeof matching.length==="number"?matching.length:"?");
+  } catch(e) { dom="domError="+str(e&&e.message||e).slice(0,120); }
+  const detail={
+    term:term,page:page,requested:requestedUrl,
+    finalUrl:str(response&&response.url),status:Number(response&&response.status)||0,
+    bytes:html.length,title:htmlText(title).slice(0,100),
+    htmlMarkers:{doctype:/<!doctype/i.test(html),nuxt:/__NUXT/i.test(html),next:/__NEXT_DATA__/i.test(html),jsonLd:/application\/ld\+json/i.test(html)},
+    anchors:hrefs.length,dramaHrefs:drama.slice(0,10),
+    hrefSamples:hrefs.slice(0,8),cardClasses:cardClasses.slice(0,18),
+    scripts:scripts,dom:dom,text:bodyText
+  };
+  try { host.log("[黄瓜搜索诊断] "+JSON.stringify(detail)); } catch(e) {
+    host.log("[黄瓜搜索诊断] term="+term+" status="+detail.status+" bytes="+detail.bytes+" title="+detail.title+" hrefs="+JSON.stringify(detail.hrefSamples)+" dom="+dom);
+  }
+}
+
 async function searchDramas(keyword,page=1) {
   const q=str(keyword),p=Math.max(1,Math.floor(Number(page)||1));
   if(!q)return {items:[],page:p,hasMore:false};
-  // 搜索固定使用已实测可返回真实搜索结果的线路，不参与首页导航和动态域名轮询。
+  // 搜索固定使用用户已确认可直接搜索的线路；诊断只记录页面结构摘要，不输出整页 HTML。
   const h=SEARCH_HOST;
   const variants=searchKeywordVariants(q);
   let lastError=null;
   for(const term of variants) {
     const encoded=encodeURIComponent(term),firstPath="/search/video/"+encoded+"/";
     try {
-      let firstBody="",links={};
-      if(p>1) {
-        const first=await getText(h+firstPath,h+"/",20000);
-        firstBody=first.body;
-        links=paginationLinks(firstBody,h);
-      }
       let target=firstPath;
       if(p>1) {
+        const first=await getText(h+firstPath,h+"/",20000);
+        searchDiagnostics(first.body,first,term,p,h+firstPath);
+        const links=paginationLinks(first.body,h);
         if(links[p])target=links[p];
         else if(links.next)target=links.next;
         else {
@@ -462,18 +504,23 @@ async function searchDramas(keyword,page=1) {
           continue;
         }
       }
-      const result=p>1&&target===firstPath
-        ? {body:firstBody,url:h+firstPath}
-        : await getText(/^https?:\/\//i.test(target)?target:h+target,h+"/",20000);
+      const result=await getText(/^https?:\/\//i.test(target)?target:h+target,h+"/",20000);
+      searchDiagnostics(result.body,result,term,p,/^https?:\/\//i.test(target)?target:h+target);
       let items=parseSearchCardsDOM(result.body,h);
+      const domCount=items.length;
       if(items.length===0) items=parseCards(result.body,h);
+      host.log("[黄瓜搜索解析] term="+term+" page="+p+" domItems="+domCount+" htmlItems="+items.length+
+        " hasArticleCards="+hasDramaCards(result.body)+" payload="+!!PAYLOAD_RE.test(result.body));
       if(items.length) {
         const nextLinks=paginationLinks(result.body,h);
         const hasMore=!!nextLinks.next||Object.keys(nextLinks).some(k=>k!=="next"&&Number(k)>p)||items.length>=10;
         return {items,page:p,hasMore};
       }
       lastError=host.error("E_PARSE","搜索结果页面未解析到剧集");
-    } catch(e) { lastError=e; }
+    } catch(e) {
+      lastError=e;
+      host.log("[黄瓜搜索异常] term="+term+" page="+p+" error="+str(e&&e.message||e).slice(0,300));
+    }
   }
   throw lastError||host.error("E_NOT_FOUND","黄瓜短剧没有找到匹配的搜索结果");
 }
