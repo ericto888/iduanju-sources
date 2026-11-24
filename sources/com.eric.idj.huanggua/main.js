@@ -36,7 +36,7 @@ function validDramaTitle(value) {
   if(/^(?:都市|现代|古风|古装|校园|熟女|原创|魔改|AI短剧|AI漫剧|真人短剧|AI真人短剧)(?:标签)?(?:短剧|剧集|频道|作品)?$/i.test(compact))return "";
   return title;
 }
- {
+function chooseDramaTitle(values) {
   for(const value of values||[]){const title=validDramaTitle(value);if(title)return title;}
   return "";
 }
