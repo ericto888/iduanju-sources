@@ -72,6 +72,16 @@ function playerCall(fn,html){const p="html5player\\s*\\.\\s*"+escRE(fn)+"\\s*\\(
 function mediaDiagnostics(html){
  const s=String(html||"");
  const count=re=>((s.match(re)||[]).length);
+ function context(re){
+  const m=re.exec(s);if(!m)return "无";
+  const start=Math.max(0,m.index-100),end=Math.min(s.length,m.index+260);
+  return s.slice(start,end)
+   .replace(/https?:\/\/[^\s"'<>\\]+/gi,"[URL]")
+   .replace(/([?&](?:token|key|hash|sig|signature|expires|auth|ip)=)[^&"'\s<>]*/gi,"$1[REDACTED]")
+   .replace(/[\r\n\t]+/g," ")
+   .replace(/\s{2,}/g," ")
+   .slice(0,360);
+ }
  return [
   "html5player:"+count(/html5player/gi),
   "setVideoUrl:"+count(/setVideoUrl[A-Za-z0-9_]*/gi),
@@ -81,7 +91,9 @@ function mediaDiagnostics(html){
   "m3u8:"+count(/m3u8/gi),
   "mp4:"+count(/\.mp4/gi),
   "flv_url:"+count(/flv_url/gi),
-  "player:"+count(/player/gi)
+  "player:"+count(/player/gi),
+  "setVideoUrl上下文:"+context(/setVideoUrl[A-Za-z0-9_]*/i),
+  "videoUrl上下文:"+context(/videoUrl/i)
  ].join(", ");
 }
 function mediaStreams(html,page){
