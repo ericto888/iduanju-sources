@@ -8,7 +8,7 @@ const ALLOWED_SUFFIXES = ["hgdju.com","hgdja1.com","hgdj1.app","hgdj17.com","hgd
 const CATEGORIES = [{id:"aiduanju",name:"AI短剧"},{id:"manju",name:"AI漫剧"},{id:"mogai",name:"AI魔改"},{id:"zhenren",name:"真人短剧"},{id:"yuanchuang",name:"原创短剧"},{id:"browse",name:"全部"}];
 const CATEGORY_IDS = ["","aiduanju","manju","mogai","zhenren","yuanchuang","browse"];
 const CARD_SPLIT = '<article data-xpch="card-drama"';
-const ALIAS_RE = /href=["\']\/drama\/([a-zA-Z0-9_-]+)["\']/i;
+const ALIAS_RE = /href=["\'](?:https?:\\/\\/[^/]+)?\/drama\/([a-zA-Z0-9_-]+)(?:[/?#]["\'])/i;
 const IMG_TAG_RE = /<img\b[^>]*>/gi;
 const IMG_ATTR_RE = /([a-zA-Z:_-]+)\s*=\s*"([^"]*)"/g;
 const COVER_PATH_RE = /(\/_img\/[A-Za-z0-9+/=]+\.(?:jpeg|jpg|png|webp))/;
@@ -168,12 +168,11 @@ function hasDramaCards(body) {
   return /<article\b(?=[^>]*\bdata-xpch=["']card-drama["'])/i.test(String(body||""));
 }
 function isSearchResponse(body,responseUrl) {
-  // 搜索结果使用 /search/video/<关键词>/ 路由。部分有效线路的卡片不是 article，
-  // 因此同时接受页面中真实的 /drama/<id> 结果链接，不能只依赖 data-xpch 标记。
-  const path=String(responseUrl||"").replace(/^https?:\/\/[^/]+/i,"").split(/[?#]/)[0];
-  if(!/\/search\/video(?:\/|$)/i.test(path))return false;
+  // 部分线路会把搜索页重定向到规范 URL，HTTP 客户端返回的 finalUrl 不稳定。
+  // 搜索请求地址由 searchDramas 固定生成，因此这里以响应是否为完整 HTML 页面判断，
+  // 不再因 finalUrl 或卡片模板差异提前拒绝解析。
   const html=String(body||"");
-  return hasDramaCards(html)||/<a\b[^>]*href=["'](?:https?:\/\/[^/]+)?\/drama\/[a-zA-Z0-9_-]+(?:["'/?#])/i.test(html);
+  return html.length>2000 && /<(?:!doctype\s+html|html|head|body)\b/i.test(html);
 }
 function parseCards(body,siteHost) {
   // 黄瓜新版卡片的剧名优先位于 aria-label；兼容 img alt、Nuxt payload 和标题属性。
@@ -196,11 +195,15 @@ function parseCards(body,siteHost) {
   // 搜索页存在不同卡片模板：当 article 模板未命中时，从真实剧集链接提取卡片，
   // 标题优先取 aria-label/title/img alt，再取链接文本；不把首页普通链接当剧集。
   if(items.length===0) {
-    const linkRe=/<a\b([^>]*?)href=["'](?:https?:\/\/[^/]+)?\/drama\/([a-zA-Z0-9_-]+)["']([^>]*)>([\s\S]*?)<\/a>/gi;
+    const linkRe=/<a\b([^>]*)>([\s\S]*?)<\/a>/gi;
     let match;
     while((match=linkRe.exec(String(body||"")))!==null) {
-      const alias=str(match[2]);if(!alias||seen[alias])continue;
-      const attrs=match[1]+" "+match[3],inner=match[4];
+      const attrs=match[1],inner=match[2];
+      const href=(/\bhref\s*=\s*["']([^"']+)["']/i.exec(attrs)||[])[1]||"";
+      const decodedHref=href.replace(/\\\//g,"/");
+      const idMatch=/\/drama\/([a-zA-Z0-9_-]+)(?:[/?#]|$)/i.exec(decodedHref);
+      const alias=idMatch?str(idMatch[1]):"";
+      if(!alias||seen[alias])continue;
       const img=(/<img\b[^>]*>/i.exec(inner)||[])[0]||"";
       const alt=(/\balt=["']([^"']+)["']/i.exec(img)||[])[1]||"";
       const aria=(/\baria-label=["']([^"']+)["']/i.exec(attrs)||[])[1]||"";
