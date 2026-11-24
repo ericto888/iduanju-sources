@@ -630,14 +630,22 @@ export default {
     try {
       const p=str(episodeId).split("/");
       if(p.length!==2||!/^[a-zA-Z0-9-]+$/.test(p[0])||!/^\d+$/.test(p[1]))fail("E_PARSE","黄瓜短剧集 ID 无效");
+      const numeric=/^\d+$/.test(p[0]);
+      if(numeric&&Number(p[1])!==1)fail("E_NOT_FOUND","该详情页只提供一个可直接播放的正片地址");
       stage="resolve host";
-      const itemHost=rememberedSearchItemHost(p[0]);
-      const h=itemHost||await getHost(),url=h+"/play/"+encodeURIComponent(p[0])+"/"+Number(p[1]);
+      const h=numeric?SEARCH_HOST:(rememberedSearchItemHost(p[0])||await getHost());
+      const url=numeric
+        ? h+"/video/"+encodeURIComponent(p[0])+"/"
+        : h+"/play/"+encodeURIComponent(p[0])+"/"+Number(p[1]);
       stage="fetch play page";
-      const body=itemHost?(await getText(url,url,20000)).body:await pageWithRefresh(url,url,b=>!!parsePlayUrl(b));
+      const body=numeric
+        ? (await getText(url,h+"/",20000)).body
+        : (rememberedSearchItemHost(p[0])
+            ? (await getText(url,url,20000)).body
+            : await pageWithRefresh(url,url,b=>!!parsePlayUrl(b)));
       stage="parse media URL";
       const media=parsePlayUrl(body);
-      if(!media)fail("E_PARSE","黄瓜短剧没有返回播放地址");
+      if(!media)fail("E_PARSE","黄瓜短剧详情页未提取到媒体地址；请查看详情诊断日志");
       stage="build stream";
       return{streams:[{name:"默认",url:media,format:/\.m3u8(?:[?#]|$)/i.test(media)?"hls":"mp4",headers:{Referer:url}}]};
     } catch(e) {
