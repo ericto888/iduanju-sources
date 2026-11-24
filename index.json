@@ -27,8 +27,8 @@
       "manifest": "https://raw.githubusercontent.com/ericto888/iduanju-sources/main/sources/com.eric.idj.huanggua/manifest.json",
       "type": "shortdrama",
       "adult": true,
-      "version": "1.2.0",
-      "description": "黄瓜短剧：修复域名缓存过期、搜索线路验证与 404 自动切换，兼容完整标题及短关键词搜索。",
+      "version": "1.2.1",
+      "description": "黄瓜短剧：搜索固定到已实测可用线路；分类、详情和播放保留动态域名。",
       "category": "shortdrama",
       "author": "iDuanJu 社区移植"
     },
