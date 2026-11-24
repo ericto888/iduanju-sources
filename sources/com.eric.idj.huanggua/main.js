@@ -304,12 +304,18 @@ function unescapePlayUrl(raw) {
   return value;
 }
 function parsePlayUrl(body) {
-  const sourceMatch = PLAY_URL_RE.exec(body);
+  const html=String(body||"");
+  const sourceMatch = PLAY_URL_RE.exec(html);
   if (sourceMatch && /^https?:/i.test(sourceMatch[1])) return unescapePlayUrl(sourceMatch[1]);
-  const escapedMatch = ESCAPED_M3U8_RE.exec(body);
+  const escapedMatch = ESCAPED_M3U8_RE.exec(html);
   if (escapedMatch) return unescapePlayUrl(escapedMatch[0]);
-  const genericMatch = M3U8_RE.exec(body);
-  return genericMatch ? unescapePlayUrl(genericMatch[0]) : "";
+  const genericMatch = M3U8_RE.exec(html);
+  if(genericMatch)return unescapePlayUrl(genericMatch[0]);
+  // 数字 ID 详情页可能直接把播放地址放在 video/source 标签中，而非 /play/{id}/1 页面。
+  const mediaTag=/<(?:video|source)\b[^>]*\bsrc\s*=\s*["']([^"']+)["']/i.exec(html);
+  if(mediaTag&&/^https?:/i.test(mediaTag[1]))return unescapePlayUrl(mediaTag[1]);
+  const mp4=/(?:https?:)?\/\/[^"'\s<>]+\.mp4(?:\?[^"'\s<>]*)?/i.exec(html);
+  return mp4?unescapePlayUrl(mp4[0]):"";
 }
 const CATEGORY_CACHE_PREFIX = "huanggua.category.v2.";
 const CATEGORY_CACHE_TTL = 10 * 60 * 1000;
