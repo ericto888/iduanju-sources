@@ -164,29 +164,7 @@ function chaptersFor(body,alias) {
   const re=new RegExp("/play/"+alias+"/(\\d+)","g"),seen={},out=[];let m;
   while((m=re.exec(body))!==null){const n=Number(m[1]);if(n>0&&n<=9999)seen[n]=true;}
   for(const n of Object.keys(seen).map(Number).sort((a,b)=>a-b))out.push({id:alias+"/"+n,name:String(n)});
-  if(!out.length)out.push({id:alias+"/1",name:"1"});
   return out;
-}
-async function playableChapters(body,alias,siteHost) {
-  const re=new RegExp("/play/"+alias+"/(\\d+)","g"),seen={},numbers=[];let m;
-  while((m=re.exec(body))!==null){const n=Number(m[1]);if(n>0&&n<=9999&&!seen[n]){seen[n]=true;numbers.push(n);}}
-  numbers.sort((a,b)=>a-b);
-  const valid=[];
-  // 小批量并发探测真实播放页；只保留 HTTP 成功且确实含媒体地址的集数。
-  for(let i=0;i<numbers.length;i+=4) {
-    const batch=numbers.slice(i,i+4);
-    const results=await Promise.all(batch.map(async n=>{
-      const url=siteHost+"/play/"+encodeURIComponent(alias)+"/"+n;
-      try { const page=await getText(url,url,12000);return parsePlayUrl(page.body)?n:null; }
-      catch(e) {
-        const message=String(e&&e.message||e);
-        // 只因明确 404 删除集数；超时/临时网络故障时保留，避免网络波动造成集数被误删。
-        return e&&e.code==="E_NOT_FOUND"||/HTTP 404/.test(message)?null:n;
-      }
-    }));
-    for(const n of results)if(n!==null)valid.push(n);
-  }
-  return valid.map(n=>({id:alias+"/"+n,name:String(n)}));
 }
 function unescapePlayUrl(raw) {
   let value = String(raw)
@@ -253,7 +231,7 @@ async function getDetail(alias) {
   if(!title)fail("E_PARSE","黄瓜短剧未返回剧集信息");
   const dm=DESC_RE.exec(body),payload=parsePayload(body)[alias];let cover=payload?coverAddress(h,payload.cover,payload.fallback):"";
   if(!cover){const image=cardImage(body);if(image.cover)cover=h+image.cover;}
-  const chapters=await playableChapters(body,alias,h);
+  const chapters=chaptersFor(body,alias);
   return{title,cover,desc:dm?htmlText(dm[1]):"",chapters};
 }
 export default {
