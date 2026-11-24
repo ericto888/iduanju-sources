@@ -3,7 +3,7 @@ const NAV_URL = "https://hgdju.com/homeward";
 const LEGACY_NAV_URLS = ["https://hgdja1.com/"];
 const CACHE_KEY = "huanggua.latestHost.v1";
 const CACHE_TTL = 30 * 60 * 1000;
-const SEED_HOSTS = ["https://hgdj17.com","https://hgdjb15.com","https://hgdj1.app","https://abc.ywwegfkd.cc","https://qwer.ywwegfkd.cc","https://xyz.ywwegfkd.cc","https://mkqjue.eyrkjyudz.cc","https://porncz.eyrkjyudz.cc","https://rixgqa.eyrkjyudz.cc"];
+const SEED_HOSTS = ["https://hgdj17.com","https://hgdjb15.com","https://hgdj1.app","https://abc.ywwegfkd.cc","https://qwer.ywwegfkd.cc","https://xyz.ywwegfkd.cc","https://mkqjue.eyrkjyudz.cc","https://porncz.eyrkjyudz.cc","https://rixgqa.eyrkjyudz.cc","https://porncz.hzeqbmes.cc"];
 const ALLOWED_SUFFIXES = ["hgdju.com","hgdja1.com","hgdj1.app","hgdj17.com","hgdjb15.com","ywwegfkd.cc","eyrkjyudz.cc","hzeqbmes.cc"];
 const CATEGORIES = [{id:"aiduanju",name:"AI短剧"},{id:"manju",name:"AI漫剧"},{id:"mogai",name:"AI魔改"},{id:"zhenren",name:"真人短剧"},{id:"yuanchuang",name:"原创短剧"},{id:"browse",name:"全部"}];
 const CATEGORY_IDS = ["","aiduanju","manju","mogai","zhenren","yuanchuang","browse"];
@@ -66,8 +66,11 @@ function readCachedHost() {
 }
 function writeCachedHost(v) { try{host.storage.set(CACHE_KEY,JSON.stringify({host:v,updatedAt:Date.now()}));}catch(e){} }
 async function validateHost(c) {
-  try { const p=await getText(c+"/aiduanju",c+"/",12000);return p.body.includes("黄瓜短剧")&&p.body.includes("/drama/"); }
-  catch(e){return false;}
+  for(const path of ["/","/ai-duanju/","/aiduanju","/browse/"]) {
+    try { const p=await getText(c+path,c+"/",12000);if(p.body.includes("黄瓜短剧")&&p.body.includes("/drama/"))return true; }
+    catch(e) {}
+  }
+  return false;
 }
 async function getHost(forceRefresh) {
   if(!forceRefresh&&memoryHost&&Date.now()-memoryHostAt<CACHE_TTL)return memoryHost;
