@@ -476,7 +476,8 @@ async function fetchCategoryPage(h,category,page) {
       const items=parseCards(body,h);
       if(items.length) {
         const nextLinks=paginationLinks(body,h);
-        const hasMore=!!nextLinks.next||Object.keys(nextLinks).some(k=>k!=="next"&&Number(k)>page)||items.length>=12;
+        const numberedPages=Object.keys(nextLinks).filter(k=>k!=="next"&&Number(k)>0).map(Number);
+        const hasMore=!!nextLinks.next||numberedPages.some(n=>n>page)||(numberedPages.length===0&&items.length>=12);
         return {items,hasMore};
       }
       lastError=host.error("E_PARSE","该分页没有解析到剧集");
