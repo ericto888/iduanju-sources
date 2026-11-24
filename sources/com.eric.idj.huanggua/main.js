@@ -32,8 +32,8 @@ function htmlText(v) {
 function validDramaTitle(value) {
   const title=htmlText(value);
   if(!title||title.length>100)return "";
-  // 频道/标签组件可能把“都市标签短剧”等文案误写入卡片 aria-label。
-  if(/^(?:都市|现代|古风|古装|校园|熟女|原创|魔改|AI短剧|AI漫剧|真人短剧|AI真人短剧)(?:标签)?(?:短剧|剧集|频道|作品)?$/i.test(title))return "";
+  const compact=title.replace(/[\s\u00a0]+/g,"");
+  if(/^(?:都市|现代|古风|古装|校园|熟女|原创|魔改|AI短剧|AI漫剧|真人短剧|AI真人短剧)(?:标签)?(?:短剧|剧集|频道|作品)?$/i.test(compact))return "";
   return title;
 }
 function chooseDramaTitle(values) {
@@ -219,7 +219,9 @@ function cardImage(segment) {
   return{cover:"",title:""};
 }
 function hasDramaCards(body) {
-  return /<article\b(?=[^>]*\bdata-xpch=["']card-drama["'])/i.test(String(body||""));
+  const html=String(body||"");
+  return /<article\b(?=[^>]*\bdata-xpch=["']card-drama["'])/i.test(html) ||
+    /href=["'][^"']*\/(?:video|drama)\/[a-zA-Z0-9_-]+/i.test(html);
 }
 function isSearchResponse(body,responseUrl) {
   // 部分线路会把搜索页重定向到规范 URL，HTTP 客户端返回的 finalUrl 不稳定。
@@ -237,8 +239,12 @@ function parseCards(body,siteHost) {
     const image=cardImage(segment),entry=payload[alias]||null;
     const aria=(/aria-label=["']([^"']+)["']/i.exec(segment)||[])[1]||"";
     const titleAttr=(/(?:data-title|title)=["']([^"']+)["']/i.exec(segment)||[])[1]||"";
-    const heading=(/<(?:h[1-6]|span|div)\b[^>]*>([\s\S]*?)<\/(?:h[1-6]|span|div)>/i.exec(segment)||[])[1]||"";
-    const title=chooseDramaTitle([entry&&entry.title,titleAttr,image.title,heading,htmlText(aria).replace(/\s*详情\s*$/,"")]);
+    const headings=[];
+    const headingRe=/<h[1-6]\b[^>]*>([\s\S]*?)<\/h[1-6]>/gi;
+    let headingMatch;
+    while((headingMatch=headingRe.exec(segment))!==null)headings.push(headingMatch[1]);
+    const cleanAria=htmlText(aria).replace(/\s*详情\s*$/,"");
+    const title=chooseDramaTitle([entry&&entry.title,...headings,cleanAria,image.title,titleAttr]);
     if(!title)continue;
     let cover=image.cover?coverAddress(siteHost,image.cover,""):"";if(!cover&&entry)cover=coverAddress(siteHost,entry.cover,entry.fallback);
     const ep=EPISODE_RE.exec(segment),heat=HEAT_RE.exec(segment),count=ep?Number(ep[1]):(entry?entry.episodes:0);
@@ -248,7 +254,7 @@ function parseCards(body,siteHost) {
   }
   // 搜索页存在不同卡片模板：当 article 模板未命中时，从真实剧集链接提取卡片，
   // 标题优先取 aria-label/title/img alt，再取链接文本；不把首页普通链接当剧集。
-  if(items.length===0) {
+  {
     const linkRe=/<a\b([^>]*)>([\s\S]*?)<\/a>/gi;
     let match;
     while((match=linkRe.exec(String(body||"")))!==null) {
@@ -263,7 +269,11 @@ function parseCards(body,siteHost) {
       const aria=(/\baria-label=["']([^"']+)["']/i.exec(attrs)||[])[1]||"";
       const titleAttr=(/\btitle=["']([^"']+)["']/i.exec(attrs)||[])[1]||"";
       const entry=payload[alias]||null;
-      const title=chooseDramaTitle([entry&&entry.title,alt,titleAttr,aria,inner]);
+      const headingTexts=[];
+      const headingRe=/<h[1-6]\b[^>]*>([\s\S]*?)<\/h[1-6]>/gi;
+      let headingMatch;
+      while((headingMatch=headingRe.exec(inner))!==null)headingTexts.push(headingMatch[1]);
+      const title=chooseDramaTitle([entry&&entry.title,...headingTexts,aria,alt,inner,titleAttr]);
       if(!title||title.length>100)continue;
       const context=String(body||"").slice(Math.max(0,match.index-500),Math.min(String(body||"").length,linkRe.lastIndex+700));
       const image=cardImage(context);
@@ -459,7 +469,7 @@ async function fetchCategoryPage(h,category,page) {
     // 优先读取站点页面给出的真实分页链接；没有分页锚点时再尝试已知路由格式。
     for(const base of bases) {
       try {
-        const first=await pageWithRefresh(h+base,h+"/",b=>hasDramaCards(b));
+        const first=await pageWithRefresh(h+base,h+"/",b=>parseCards(b,h).length>0);
         links=paginationLinks(first,h);
         if(links[page]||links.next)break;
       } catch(e) {}
@@ -470,7 +480,7 @@ async function fetchCategoryPage(h,category,page) {
   for(const target of candidates) {
     try {
       const url=/^https?:\/\//i.test(target)?target:h+target;
-      const body=await pageWithRefresh(url,h+"/",b=>hasDramaCards(b));
+      const body=await pageWithRefresh(url,h+"/",b=>parseCards(b,h).length>0);
       const items=parseCards(body,h);
       if(items.length) {
         const nextLinks=paginationLinks(body,h);
