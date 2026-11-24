@@ -155,6 +155,7 @@ function parsePayload(body) {
 function coverAddress(siteHost,raw,fallback) {
   const v=str(raw);
   if(v.startsWith("/_img/"))return siteHost+v;
+  if(v.startsWith("/")&&!v.startsWith("//"))return siteHost+v;
   if(/^https?:\/\//i.test(v)&&!/\s/.test(v)){let ext=v.split(/[?#]/)[0].split(".").pop();if(!/^(jpeg|jpg|png|webp)$/i.test(ext))ext="jpeg";return siteHost+"/_img/"+base64Raw(v)+"."+ext;}
   const f=str(fallback);if(f.startsWith("/")&&!f.startsWith("//"))return siteHost+f;if(/^https?:\/\//i.test(f))return f;return "";
 }
@@ -194,7 +195,7 @@ function parseCards(body,siteHost) {
     const heading=(/<(?:h[1-6]|span|div)\b[^>]*>([\s\S]*?)<\/(?:h[1-6]|span|div)>/i.exec(segment)||[])[1]||"";
     const title=str(htmlText(aria).replace(/\s*详情\s*$/,"")||image.title||(entry&&entry.title)||htmlText(titleAttr)||htmlText(heading));
     if(!title)continue;
-    let cover=image.cover?siteHost+image.cover:"";if(!cover&&entry)cover=coverAddress(siteHost,entry.cover,entry.fallback);
+    let cover=image.cover?coverAddress(siteHost,image.cover,""):"";if(!cover&&entry)cover=coverAddress(siteHost,entry.cover,entry.fallback);
     const ep=EPISODE_RE.exec(segment),heat=HEAT_RE.exec(segment),count=ep?Number(ep[1]):(entry?entry.episodes:0);
     const item={id:alias,title,remarks:count>0?"更新至"+count+"集":""};
     const views=heat?heat[1]+"热度":(entry&&entry.heat?entry.heat+"热度":"");
@@ -221,7 +222,7 @@ function parseCards(body,siteHost) {
       if(!title||title.length>100)continue;
       const context=String(body||"").slice(Math.max(0,match.index-500),Math.min(String(body||"").length,linkRe.lastIndex+700));
       const image=cardImage(context);
-      let cover=image.cover?siteHost+image.cover:"";
+      let cover=image.cover?coverAddress(siteHost,image.cover,""):"";
       if(!cover&&entry)cover=coverAddress(siteHost,entry.cover,entry.fallback);
       const ep=EPISODE_RE.exec(context),heat=HEAT_RE.exec(context),count=ep?Number(ep[1]):(entry?entry.episodes:0);
       const item={id:alias,title,remarks:count>0?"更新至"+count+"集":""};
@@ -539,7 +540,7 @@ async function getDetail(alias) {
   const body=await pageWithRefresh(url,h+"/",b=>/<h1\b/i.test(b)),tm=H1_RE.exec(body),title=tm?htmlText(tm[1]):"";
   if(!title)fail("E_PARSE","黄瓜短剧未返回剧集信息");
   const dm=DESC_RE.exec(body),payload=parsePayload(body)[alias];let cover=payload?coverAddress(h,payload.cover,payload.fallback):"";
-  if(!cover){const image=cardImage(body);if(image.cover)cover=h+image.cover;}
+  if(!cover){const image=cardImage(body);if(image.cover)cover=coverAddress(h,image.cover,"");}
   const chapters=chaptersFor(body,alias);
   return{title,cover,desc:dm?htmlText(dm[1]):"",chapters};
 }
