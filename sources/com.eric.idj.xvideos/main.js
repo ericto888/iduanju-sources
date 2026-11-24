@@ -107,7 +107,7 @@ function mediaStreams(html,page){
   out.push({name:label||qualityName("",u),url:u,format:inferred,headers:{Referer:page,"User-Agent":UA}});
  }
  function qualityName(label,url){
-  const q=(String(label||"")+" "+String(url||"")).match(/(?:^|[^0-9])(2160|1440|1080|720|480|360)p?(?:[^0-9]|$)/i);
+  const q=(String(label||"")+" "+String(url||"")).match(/\b(2160|1440|1080|720|480|360)\s*p?\b/i);
   if(q)return q[1]+"P";
   const s=String(label||"").toLowerCase();
   if(s.includes("superhigh"))return "超高清线路";
@@ -153,7 +153,7 @@ function mediaStreams(html,page){
   for(const obj of objects){
    const vm=/(?:["']?videoUrl["']?)\s*:\s*(['"])((?:\\.|[^\\])*?)\1/i.exec(obj);
    if(!vm)continue;
-   const qm=/(?:["']?quality["']?)\s*:\s*(['"]?)(\d{3,4}p?)\1/i.exec(obj);
+   const qm=/(?:["']?quality["']?)\s*:\s*["']?(\d{3,4}p?)["']?/i.exec(obj);
    const raw=playerString(vm[2]);
    add(raw,qm?qualityName(qm[2],raw):qualityName("",raw),"mp4");
   }
@@ -167,7 +167,7 @@ function mediaStreams(html,page){
   for(const obj of objects){
    const um=/(?:["']?(?:src|file|url|videoUrl|video_url)["']?)\s*:\s*(['"])((?:\\.|[^\\])*?)\1/i.exec(obj);
    if(!um)continue;
-   const qm=/(?:["']?(?:label|quality|res)["']?)\s*:\s*(['"]?)([^"',}\s]{1,24})\1/i.exec(obj);
+   const qm=/(?:["']?(?:label|quality|res)["']?)\s*:\s*["']?([^"',}\s]{1,24})["']?/i.exec(obj);
    const raw=playerString(um[2]);
    add(raw,qm?qualityName(qm[2],raw):qualityName("",raw),"mp4");
   }
