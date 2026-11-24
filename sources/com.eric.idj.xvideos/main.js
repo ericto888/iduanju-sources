@@ -3,7 +3,27 @@
 // Playback, safety filtering and sandboxing remain controlled by the host app.
 const BASE = "https://www.xvideos.com";
 const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Safari/605.1.15";
-const CATEGORIES = [{id:"new",name:"最新"},{id:"best",name:"上月最佳"}];
+const CATEGORIES = [
+ {id:"new",name:"最新"},
+ {id:"best",name:"上月最佳"},
+ {id:"Amateur-65",name:"业余"},
+ {id:"Asian_Woman-32",name:"亚洲女性"},
+ {id:"Anal-12",name:"肛交"},
+ {id:"Big_Tits-23",name:"大胸"},
+ {id:"Blowjob-15",name:"口交"},
+ {id:"Creampie-40",name:"内射"},
+ {id:"Lesbian-26",name:"女同性恋"},
+ {id:"Milf-19",name:"熟女"},
+ {id:"Ass-14",name:"臀部"},
+ {id:"bbw-51",name:"丰满女性"},
+ {id:"Latina-16",name:"拉丁裔"},
+ {id:"Mature-38",name:"成熟女性"},
+ {id:"Stockings-28",name:"长筒袜"},
+ {id:"Squinting-56",name:"潮吹"},
+ {id:"Solo_and_Masturbation-33",name:"单人／自慰"},
+ {id:"Lingerie-83",name:"情趣内衣"},
+ {id:"Cuckold-237",name:"NTR"}
+];
 const BLOCKED = ["underage","under age","minor ","minors","preteen","pre-teen","child","kid ","kids","loli","shota","schoolgirl","school girl","jailbait","rape","raped","forced","non-consensual","nonconsensual","non consent","drugged","unconscious","sleeping","passed out","hidden cam","hidden camera","spy cam","upskirt","未成年","幼女","萝莉","蘿莉","中学生","中學生","小学生","小學生","强奸","強姦","强暴","迷奸","迷姦","偷拍","下药","下藥"];
 function str(v){return v==null?"":String(v).trim();}
 function fail(code,message){throw host.error(code,message);}
@@ -12,7 +32,7 @@ function safeTitle(title){const t=" "+str(title).toLowerCase()+" ";return !BLOCK
 function escRE(s){return s.replace(/[.*+?^$()|[\]\\]/g,"\\$&");}
 function groups(pattern,text,flags){return new RegExp(pattern,flags||"").exec(String(text||""));}
 function previousMonth(){const d=new Date();d.setUTCDate(1);d.setUTCMonth(d.getUTCMonth()-1);return d.getUTCFullYear()+"-"+String(d.getUTCMonth()+1).padStart(2,"0");}
-function categoryPath(id,page){const p=Math.max(1,Math.floor(Number(page)||1));if(id==="new")return p===1?"/":"/new/"+(p-1);if(id==="best"){const m=previousMonth();return p===1?"/best/"+m:"/best/"+m+"/"+(p-1);}fail("E_PARSE","XVideos 分类无效");}
+function categoryPath(id,page){const p=Math.max(1,Math.floor(Number(page)||1));if(id==="new")return p===1?"/":"/new/"+(p-1);if(id==="best"){const m=previousMonth();return p===1?"/best/"+m:"/best/"+m+"/"+(p-1);}if(CATEGORIES.some(c=>c.id===id&&id!=="new"&&id!=="best"))return "/c/"+encodeURIComponent(id)+"/"+p;fail("E_PARSE","XVideos 分类无效");}
 async function request(url,referer,timeout){const r=await host.http.request({url,headers:{"User-Agent":UA,"Referer":referer||BASE+"/"},timeout:timeout||25000});if(!r||r.status<200||r.status>=300)fail(r&&r.status===404?"E_NOT_FOUND":"E_HTTP","XVideos 请求失败 HTTP "+(r?r.status:0)+"："+url);return{body:str(r.body),url:str(r.url)||url,headers:r.headers||{}};}
 function parseDuration(s){const t=cleanText(s);if(/^\d+:\d{2}(?::\d{2})?$/.test(t)){const a=t.split(":").map(Number);return a.length===3?a[0]*3600+a[1]*60+a[2]:a[0]*60+a[1];}let n=0,m;if((m=/(\d+)\s*h/i.exec(t)))n+=Number(m[1])*3600;if((m=/(\d+)\s*min/i.exec(t)))n+=Number(m[1])*60;if((m=/(\d+)\s*sec/i.exec(t)))n+=Number(m[1]);return n;}
 function absURL(u){let v=str(u).replace(/&amp;/gi,"&");if(!v||/^(?:data:|blob:|javascript:)/i.test(v))return"";if(v.startsWith("//"))return"https:"+v;if(v.startsWith("/"))return BASE+v;if(/^https?:\/\//i.test(v))return v;return"";}
