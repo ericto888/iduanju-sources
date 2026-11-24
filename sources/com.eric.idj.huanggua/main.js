@@ -578,7 +578,7 @@ function detailDiagnostics(body,response,alias,requestedUrl) {
   }
   const routeLinks=[],routeRe=/\bhref\s*=\s*["']([^"']*\/(?:video|drama)\/[^"']*)["']/gi;
   while((m=routeRe.exec(html))!==null&&routeLinks.length<12) {
-    const value=m[1].replace(/&amp;/g,"&").replace(/\\\\\\//g,"/");
+    const value=m[1].replace(/&amp;/g,"&").replace(/\\\//g,"/");
     if(!routeLinks.includes(value))routeLinks.push(value);
   }
   const blocked=/(已停止访问|停止访问|停止提供服务|页面不存在|内容不存在|已下架|无法访问)/i.test(visible);
