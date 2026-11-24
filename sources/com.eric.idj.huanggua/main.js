@@ -325,6 +325,7 @@ async function searchDramas(keyword,page=1) {
   if(!q)return {items:[],page:p,hasMore:false};
   const encoded=encodeURIComponent(q);
   let links={},firstBody="";
+  // 先读取第一页的真实分页链接，避免猜测网站分页规则。
   if(p>1) {
     try {
       firstBody=await pageWithRefresh(h+"/search?q="+encoded,h+"/",b=>hasDramaCards(b));
@@ -333,16 +334,24 @@ async function searchDramas(keyword,page=1) {
   }
   const paths=p===1
     ? ["/search?q="+encoded,"/search?keyword="+encoded,"/search?wd="+encoded]
-    : (links[p]?[links[p]]:["/search?q="+encoded+"&page="+p,"/search?q="+encoded+"&p="+p,"/search/page-"+p+"?q="+encoded]);
+    : (links[p]?[links[p]]:[
+        "/search?q="+encoded+"&page="+p,
+        "/search?q="+encoded+"&p="+p,
+        "/search?page="+p+"&q="+encoded,
+        "/search/page-"+p+"?q="+encoded,
+        "/search/"+encoded+"/page-"+p,
+        "/search/"+encoded+"/"+p+"/"
+      ]);
   let lastError=null;
   for(const path of paths) {
     try {
       const url=/^https?:\/\//i.test(path)?path:h+path;
-      const body=firstBody&&p===1?firstBody:await pageWithRefresh(url,h+"/",b=>hasDramaCards(b));
+      const body=await pageWithRefresh(url,h+"/",b=>hasDramaCards(b));
       const items=parseCards(body,h);
       if(items.length) {
         const nextLinks=paginationLinks(body,h);
-        const hasMore=!!nextLinks.next||Object.keys(nextLinks).some(k=>k!=="next"&&Number(k)>p)||items.length>=12;
+        // 黄瓜搜索列表通常每页 10 条；10 条不能误判为最后一页。
+        const hasMore=!!nextLinks.next||Object.keys(nextLinks).some(k=>k!=="next"&&Number(k)>p)||items.length>=10;
         return {items,page:p,hasMore};
       }
       lastError=host.error("E_PARSE","搜索结果页面未解析到剧集");
