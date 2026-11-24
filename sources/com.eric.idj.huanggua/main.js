@@ -598,25 +598,26 @@ function detailDiagnostics(body,response,alias,requestedUrl) {
   catch(e) { host.log("[黄瓜详情诊断] id="+alias+" status="+info.status+" bytes="+info.bytes+" title="+info.pageTitle+" h1="+info.h1+" playLinks="+info.playLinkCount+" blocked="+blocked); }
 }
 async function getDetail(alias) {
-  alias=str(alias);if(!/^[a-zA-Z0-9-]+$/.test(alias))fail("E_PARSE","黄瓜短剧剧集 ID 无效");
-  const itemHost=rememberedSearchItemHost(alias);
-  const h=itemHost||await getHost();
-  const route=/^\d+$/.test(alias)?"/video/":"/drama/";
+  alias=str(alias);
+  if(!/^[a-zA-Z0-9-]+$/.test(alias))fail("E_PARSE","黄瓜短剧剧集 ID 无效");
+  const numeric=/^\d+$/.test(alias);
+  // 搜索结果的数字 ID 始终来自已验证的搜索站点，不能依赖可能丢失的本地 storage 映射。
+  const h=numeric?SEARCH_HOST:(rememberedSearchItemHost(alias)||await getHost());
+  const route=numeric?"/video/":"/drama/";
   const url=h+route+encodeURIComponent(alias)+"/";
-  let response,body;
-  if(itemHost) {
-    response=await getText(url,h+"/",20000);
-    body=response.body;
-  } else {
-    body=await pageWithRefresh(url,h+"/",b=>/<h1\b/i.test(b));
-    response={url,status:200};
-  }
+  const response=await getText(url,h+"/",20000);
+  const body=response.body;
   detailDiagnostics(body,response,alias,url);
-  const tm=H1_RE.exec(body),title=tm?htmlText(tm[1]):"";
-  if(!title)fail("E_PARSE","黄瓜短剧未返回剧集信息");
-  const dm=DESC_RE.exec(body),payload=parsePayload(body)[alias];let cover=payload?coverAddress(h,payload.cover,payload.fallback):"";
+  const h1=(H1_RE.exec(body)||[])[1]||"";
+  const pageTitle=(/<title[^>]*>([\s\S]*?)<\/title>/i.exec(body)||[])[1]||"";
+  const title=htmlText(h1)||htmlText(pageTitle).replace(/\s*[-|｜]\s*黄瓜短剧.*$/i,"").trim();
+  if(!title)fail("E_PARSE","黄瓜短剧详情页未解析到标题，请查看详情诊断日志");
+  const dm=DESC_RE.exec(body),payload=parsePayload(body)[alias];
+  let cover=payload?coverAddress(h,payload.cover,payload.fallback):"";
   if(!cover){const image=cardImage(body);if(image.cover)cover=coverAddress(h,image.cover,"");}
   const chapters=chaptersFor(body,alias);
+  // 部分详情页不提供 /play/ 链接，而是在详情 HTML 中直接嵌入媒体地址。
+  if(chapters.length===0&&parsePlayUrl(body))chapters.push({id:alias+"/1",name:"正片"});
   return{title,cover,desc:dm?htmlText(dm[1]):"",chapters};
 }
 export default {
