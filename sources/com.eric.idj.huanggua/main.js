@@ -596,9 +596,9 @@ async function searchDramas(keyword,page=1) {
         host.log("[黄瓜搜索分页异常] requestedPage="+p+" returnedPage="+reportedPage+" url="+requestUrl);
         return {items:[],page:p,hasMore:false};
       }
-      let candidates=parseSearchCardsDOM(result.body,h);
+      const candidates=parseSearchCardsDOM(result.body,h);
       const domCount=candidates.length;
-      if(candidates.length===0)candidates=parseCards(result.body,h);
+      // 搜索页不再回退到分类页的全局链接扫描；该扫描会把推荐区/导航区混入搜索结果。
       const items=filterSearchItems(candidates,q);
       host.log("[黄瓜搜索解析] term="+term+" page="+p+" domCandidates="+domCount+
         " candidates="+candidates.length+" matched="+items.length+
