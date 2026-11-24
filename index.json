@@ -27,8 +27,8 @@
       "manifest": "https://raw.githubusercontent.com/ericto888/iduanju-sources/main/sources/com.eric.idj.huanggua/manifest.json",
       "type": "shortdrama",
       "adult": true,
-      "version": "1.1.6",
-      "description": "黄瓜短剧：修复搜索结果剧名解析，兼容 aria-label、图片 alt 与新版卡片结构。",
+      "version": "1.1.7",
+      "description": "黄瓜短剧：修复搜索每页 10 条时提前结束，扩展搜索分页地址兼容。",
       "category": "shortdrama",
       "author": "iDuanJu 社区移植"
     },
