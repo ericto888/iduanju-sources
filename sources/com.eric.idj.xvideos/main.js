@@ -80,26 +80,49 @@ function mediaStreams(html,page){
   seen[u]=true;
   out.push({name,url:u,format,headers:{Referer:page,"User-Agent":UA}});
  }
- // XVideos 原生播放器按清晰度提供独立地址；不要扫描整页所有 mp4，
- // 否则会把广告、备用 CDN 和重复转码地址都暴露成一堆“播放源”。
- const superHigh=playerCall("setVideoUrlSuperHigh",html);
- const high=playerCall("setVideoUrlHigh",html);
- const low=playerCall("setVideoUrlLow",html);
- if(superHigh)add(superHigh,"1080P","mp4");
- if(high)add(high,superHigh?"720P":"720P","mp4");
- if(low)add(low,"480P","mp4");
- const hls=playerCall("setVideoHLS",html);
- if(hls)add(hls,"自动（HLS）","hls");
- // 兼容少数页面只提供 flv_url 的情况；仅作为兜底，不枚举页面里的任意 mp4 链接。
+ function qualityName(label,url){
+  const q=(String(label||"")+" "+String(url||"")).match(/(?:^|[^0-9])(1080|720|480|360)p?(?:[^0-9]|$)/i);
+  if(q)return q[1]+"P";
+  const s=String(label||"").toLowerCase();
+  if(s.includes("superhigh"))return "1080P";
+  if(s.includes("high"))return "720P";
+  if(s.includes("low"))return "480P";
+  return "默认清晰度";
+ }
+ // 兼容播放器方法名变化、空格和转义字符串，不再扫描页面中无关的 MP4。
+ const callRe=/(?:html5player\s*\.\s*)?(setVideoUrl([A-Za-z0-9_]*)|setVideoHLS)\s*\(\s*(['"])((?:\\.|[^\\])*?)\3\s*\)/gi;
+ let m;
+ while((m=callRe.exec(String(html||"")))!==null){
+  const method=m[1],suffix=m[2]||"",url=playerString(m[4]);
+  if(method.toLowerCase()==="setvideohls")add(url,"自动（HLS）","hls");
+  else add(url,qualityName(suffix,url),"mp4");
+ }
+ // 新版页面也可能把清晰度列表放在 mediaDefinitions 数组/对象中。
+ const source=String(html||"");
+ const md=source.search(/\bmediaDefinitions\b/i);
+ if(md>=0){
+  const tail=source.slice(md,Math.min(source.length,md+50000));
+  const objects=tail.match(/\{[^{}]{1,6000}\}/g)||[];
+  for(const obj of objects){
+   const vm=/(?:["']?videoUrl["']?)\s*:\s*(['"])((?:\\.|[^\\])*?)\1/i.exec(obj);
+   if(!vm)continue;
+   const qm=/(?:["']?quality["']?)\s*:\s*(['"]?)(\d{3,4}p?)\1/i.exec(obj);
+   const label=qm?qualityName(qm[2],vm[2]):qualityName("",vm[2]);
+   add(vm[2],label,"mp4");
+  }
+ }
+ // 兼容少数仅有 flv_url 的旧页面；不把页面里任意 MP4 当作线路。
  if(!out.length){
-  const m=/(?:[?&])flv_url=([^&"'\s<>]+)/i.exec(html)||/flv_url\s*[:=]\s*["']([^"']+)["']/i.exec(html);
-  if(m&&m[1]){
-   let u=m[1].replace(/\+/g,"%20");
+  const fm=/(?:[?&])flv_url=([^&"'\s<>]+)/i.exec(source)||/flv_url\s*[:=]\s*["']([^"']+)["']/i.exec(source);
+  if(fm&&fm[1]){
+   let u=fm[1].replace(/\+/g,"%20");
    try{u=decodeURIComponent(u);}catch(e){}
    add(u,"默认清晰度","mp4");
   }
  }
- return out;
+ // 同名线路去重，避免 high/low 实际指向同一个文件时重复展示。
+ const names=Object.create(null);
+ return out.filter(item=>{if(names[item.name])return false;names[item.name]=true;return true;});
 }
 async function loadDetail(id){const path=videoPath(id),r=await request(BASE+path,BASE+"/",30000),html=r.body,tm=groups(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)/i.source,html),title=playerCall("setVideoTitle",html)||(tm?cleanText(tm[1]):"");if(!title||!safeTitle(title))fail("E_NOT_FOUND","XVideos 视频不可用或未通过内容安全筛选");const cm=groups(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)/i.source,html),cover=playerCall("setThumbUrl169",html)||(cm?cm[1]:""),d=groups('"duration"\\s*:\\s*"PT(?:(\\d+)H)?(?:(\\d+)M)?(?:(\\d+)S)?"',html);let duration=0;if(d)duration=(Number(d[1])||0)*3600+(Number(d[2])||0)*60+(Number(d[3])||0);const tags=[],re=/<a[^>]*class="[^"]*is-keyword[^"]*"[^>]*>([^<]+)<\/a>/gi;let m;while((m=re.exec(html))!==null&&tags.length<16){const t=cleanText(m[1]);if(t&&safeTitle(t))tags.push(t);}return{title,cover,duration,page:r.url||BASE+path,path};}
 export default {
