@@ -73,7 +73,7 @@ async function validateHost(c,requireSearch) {
   for(const path of paths) {
     try {
       const p=await getText(c+path,c+"/",12000);
-      if(requireSearch ? parseSearchCardsDOM(p.body,c).length>0 : (p.body.includes("黄瓜短剧")&&p.body.includes("/drama/")))return true;
+      if(requireSearch ? parseSearchCardsDOM(p.body,c).length>0 : (p.body.includes("黄瓜短剧")&&(p.body.includes("/video/")||p.body.includes("/drama/"))))return true;
     } catch(e) {}
   }
   return false;
@@ -160,8 +160,16 @@ function coverAddress(siteHost,raw,fallback) {
 }
 function cardImage(segment) {
   const tags=segment.match(IMG_TAG_RE)||[];
-  for(const tag of tags.slice(0,16)){const attrs={};let m;IMG_ATTR_RE.lastIndex=0;while((m=IMG_ATTR_RE.exec(tag))!==null)attrs[m[1].toLowerCase()]=str(m[2]);
-    for(const k of ["data-src","data-original","data-lazy-src","src","srcset"]){const found=COVER_PATH_RE.exec(attrs[k]||"");if(found)return{cover:found[1],title:attrs.alt||""};}}
+  for(const tag of tags.slice(0,16)){
+    const attrs={};let m;IMG_ATTR_RE.lastIndex=0;
+    while((m=IMG_ATTR_RE.exec(tag))!==null)attrs[m[1].toLowerCase()]=str(m[2]);
+    for(const k of ["data-src","data-original","data-lazy-src","src","srcset"]){
+      let raw=str(attrs[k]);if(k==="srcset")raw=raw.split(",")[0].trim().split(/\\s+/)[0];
+      if(!raw||/^data:/i.test(raw))continue;
+      if(COVER_PATH_RE.test(raw))return{cover:COVER_PATH_RE.exec(raw)[1],title:attrs.alt||""};
+      if(/^https?:\\/\\//i.test(raw)||raw.startsWith("/"))return{cover:raw,title:attrs.alt||""};
+    }
+  }
   return{cover:"",title:""};
 }
 function hasDramaCards(body) {
