@@ -27,8 +27,8 @@
       "manifest": "https://raw.githubusercontent.com/ericto888/iduanju-sources/main/sources/com.eric.idj.huanggua/manifest.json",
       "type": "shortdrama",
       "adult": true,
-      "version": "1.0.7",
-      "description": "黄瓜短剧：分类、详情、按详情页总集数显示数字选集（1、2、3…）、多集播放及最新地址发现。",
+      "version": "1.0.9",
+      "description": "黄瓜短剧：推荐入口由宿主提供；支持 AI短剧、AI漫剧、AI魔改、真人短剧、原创短剧、全部分类懒加载及缓存，详情、多集播放与最新地址发现。",
       "category": "shortdrama",
       "author": "iDuanJu 社区移植"
     },
