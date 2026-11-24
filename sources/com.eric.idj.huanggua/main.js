@@ -568,52 +568,72 @@ function searchDiagnostics(body, response, term, page, requestedUrl) {
   }
 }
 
+function searchPathVariants(term) {
+  const encoded=encodeURIComponent(term);
+  return [
+    "/search?q="+encoded,
+    "/search?keyword="+encoded,
+    "/search?query="+encoded,
+    "/search/video/"+encoded+"/",
+    "/search/"+encoded
+  ];
+}
+function searchPageCandidates(path,page,links) {
+  if(page===1)return [path];
+  if(links&&links[page])return [links[page]];
+  if(links&&links.next&&pageNumberFromHref(links.next)===page)return [links.next];
+  const hash=path.includes("?")?"&":"?";
+  const candidates=[path+hash+"page="+page,path+hash+"p="+page];
+  if(!path.includes("?")) {
+    const root=path.endsWith("/")?path:path+"/";
+    candidates.push(root+page+"/",root+"page-"+page+"/");
+  }
+  return candidates;
+}
 async function searchDramas(keyword,page=1) {
   const q=str(keyword),p=Math.max(1,Math.floor(Number(page)||1));
   if(!q)return {items:[],page:p,hasMore:false};
-  // 搜索固定使用用户已确认可直接搜索的线路；诊断只记录页面结构摘要，不输出整页 HTML。
-  const h=await getHost(false,true);
+  // 新版主站使用 /drama/<slug> 卡片；不再把已停止访问的旧数字 ID 域名作为搜索入口。
+  const h=await getHost();
   const variants=searchKeywordVariants(q);
   let lastError=null;
   for(const term of variants) {
-    const encoded=encodeURIComponent(term),firstPath="/search/video/"+encoded+"/";
-    try {
-      let target=firstPath;
-      if(p>1) {
-        const first=await getText(h+firstPath,h+"/",20000);
-        searchDiagnostics(first.body,first,term,p,h+firstPath);
-        const links=paginationLinks(first.body,h);
-        if(links[p])target=links[p];
-        else if(links.next&&pageNumberFromHref(links.next)===p)target=links.next;
-        else if(p===2)target=firstPath+"2/";
-        else target=firstPath+p+"/";
+    for(const firstPath of searchPathVariants(term)) {
+      try {
+        let links={},target=firstPath;
+        if(p>1) {
+          const first=await getText(h+firstPath,h+"/",20000);
+          if(!hasDramaCards(first.body))continue;
+          links=paginationLinks(first.body,h);
+          const pageTargets=searchPageCandidates(firstPath,p,links);
+          let found=false;
+          for(const candidate of pageTargets) {
+            try {
+              const check=await getText(/^https?:\/\//i.test(candidate)?candidate:h+candidate,h+"/",20000);
+              if(hasDramaCards(check.body)) { target=candidate;found=true;break; }
+            } catch(e) {}
+          }
+          if(!found)continue;
+        }
+        const requestUrl=/^https?:\/\//i.test(target)?target:h+target;
+        const result=await getText(requestUrl,h+"/",20000);
+        searchDiagnostics(result.body,result,term,p,requestUrl);
+        if(!hasDramaCards(result.body))continue;
+        const candidates=parseCards(result.body,h);
+        const items=filterSearchItems(candidates,q);
+        host.log("[黄瓜搜索解析] term="+term+" page="+p+" articleCandidates="+candidates.length+
+          " matched="+items.length+" titles="+JSON.stringify(candidates.slice(0,12).map(x=>x.title)));
+        if(items.length) {
+          const nextLinks=paginationLinks(result.body,h);
+          rememberSearchItemHost(items,h);
+          const hasMore=!!nextLinks.next||Object.keys(nextLinks).some(k=>k!=="next"&&Number(k)>p);
+          return {items,page:p,hasMore};
+        }
+        lastError=host.error("E_PARSE","新版搜索页未返回标题匹配的剧集卡片");
+      } catch(e) {
+        lastError=e;
+        host.log("[黄瓜搜索异常] term="+term+" page="+p+" path="+firstPath+" error="+str(e&&e.message||e).slice(0,240));
       }
-      const requestUrl=/^https?:\/\//i.test(target)?target:h+target;
-      const result=await getText(requestUrl,h+"/",20000);
-      searchDiagnostics(result.body,result,term,p,requestUrl);
-      const reportedPage=searchResultPage(result.body);
-      if(p>1&&reportedPage>0&&reportedPage!==p) {
-        host.log("[黄瓜搜索分页异常] requestedPage="+p+" returnedPage="+reportedPage+" url="+requestUrl);
-        return {items:[],page:p,hasMore:false};
-      }
-      const candidates=parseSearchCardsDOM(result.body,h);
-      const domCount=candidates.length;
-      // 搜索页不再回退到分类页的全局链接扫描；该扫描会把推荐区/导航区混入搜索结果。
-      const items=filterSearchItems(candidates,q);
-      host.log("[黄瓜搜索解析] term="+term+" page="+p+" domCandidates="+domCount+
-        " candidates="+candidates.length+" matched="+items.length+
-        " titles="+JSON.stringify(candidates.slice(0,12).map(x=>x.title))+
-        " hasArticleCards="+hasDramaCards(result.body)+" payload="+!!PAYLOAD_RE.test(result.body));
-      if(items.length) {
-        const nextLinks=paginationLinks(result.body,h);
-        rememberSearchItemHost(items,h);
-        const hasMore=!!nextLinks.next||Object.keys(nextLinks).some(k=>k!=="next"&&Number(k)>p);
-        return {items,page:p,hasMore};
-      }
-      lastError=host.error("E_PARSE","搜索结果页面未解析到剧集");
-    } catch(e) {
-      lastError=e;
-      host.log("[黄瓜搜索异常] term="+term+" page="+p+" error="+str(e&&e.message||e).slice(0,300));
     }
   }
   throw lastError||host.error("E_NOT_FOUND","黄瓜短剧没有找到匹配的搜索结果");
