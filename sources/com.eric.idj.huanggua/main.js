@@ -168,9 +168,12 @@ function hasDramaCards(body) {
   return /<article\b(?=[^>]*\bdata-xpch=["']card-drama["'])/i.test(String(body||""));
 }
 function isSearchResponse(body,responseUrl) {
-  // 搜索结果使用 /search/video/<关键词>/ 路由；拒绝被重定向到首页/分类页的响应。
+  // 搜索结果使用 /search/video/<关键词>/ 路由。部分有效线路的卡片不是 article，
+  // 因此同时接受页面中真实的 /drama/<id> 结果链接，不能只依赖 data-xpch 标记。
   const path=String(responseUrl||"").replace(/^https?:\/\/[^/]+/i,"").split(/[?#]/)[0];
-  return hasDramaCards(body)&&/\/search\/video(?:\/|$)/i.test(path);
+  if(!/\/search\/video(?:\/|$)/i.test(path))return false;
+  const html=String(body||"");
+  return hasDramaCards(html)||/<a\b[^>]*href=["'](?:https?:\/\/[^/]+)?\/drama\/[a-zA-Z0-9_-]+(?:["'/?#])/i.test(html);
 }
 function parseCards(body,siteHost) {
   // 黄瓜新版卡片的剧名优先位于 aria-label；兼容 img alt、Nuxt payload 和标题属性。
@@ -190,6 +193,32 @@ function parseCards(body,siteHost) {
     const item={id:alias,title,remarks:count>0?"更新至"+count+"集":""};
     const views=heat?heat[1]+"热度":(entry&&entry.heat?entry.heat+"热度":"");
     if(cover)item.cover=cover;if(views)item.views=views;seen[alias]=true;items.push(item);
+  }
+  // 搜索页存在不同卡片模板：当 article 模板未命中时，从真实剧集链接提取卡片，
+  // 标题优先取 aria-label/title/img alt，再取链接文本；不把首页普通链接当剧集。
+  if(items.length===0) {
+    const linkRe=/<a\b([^>]*?)href=["'](?:https?:\/\/[^/]+)?\/drama\/([a-zA-Z0-9_-]+)["']([^>]*)>([\s\S]*?)<\/a>/gi;
+    let match;
+    while((match=linkRe.exec(String(body||"")))!==null) {
+      const alias=str(match[2]);if(!alias||seen[alias])continue;
+      const attrs=match[1]+" "+match[3],inner=match[4];
+      const img=(/<img\b[^>]*>/i.exec(inner)||[])[0]||"";
+      const alt=(/\balt=["']([^"']+)["']/i.exec(img)||[])[1]||"";
+      const aria=(/\baria-label=["']([^"']+)["']/i.exec(attrs)||[])[1]||"";
+      const titleAttr=(/\btitle=["']([^"']+)["']/i.exec(attrs)||[])[1]||"";
+      const entry=payload[alias]||null;
+      const title=str(htmlText(aria)||htmlText(titleAttr)||htmlText(alt)||(entry&&entry.title)||htmlText(inner));
+      if(!title||title.length>100)continue;
+      const context=String(body||"").slice(Math.max(0,match.index-500),Math.min(String(body||"").length,linkRe.lastIndex+700));
+      const image=cardImage(context);
+      let cover=image.cover?siteHost+image.cover:"";
+      if(!cover&&entry)cover=coverAddress(siteHost,entry.cover,entry.fallback);
+      const ep=EPISODE_RE.exec(context),heat=HEAT_RE.exec(context),count=ep?Number(ep[1]):(entry?entry.episodes:0);
+      const item={id:alias,title,remarks:count>0?"更新至"+count+"集":""};
+      const views=heat?heat[1]+"热度":(entry&&entry.heat?entry.heat+"热度":"");
+      if(cover)item.cover=cover;if(views)item.views=views;
+      seen[alias]=true;items.push(item);
+    }
   }
   return items;
 }
