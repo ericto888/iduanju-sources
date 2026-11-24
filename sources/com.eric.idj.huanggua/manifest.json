@@ -2,12 +2,12 @@
   "schema": 1,
   "id": "com.eric.idj.huanggua",
   "name": "黄瓜短剧",
-  "version": "1.2.6",
+  "version": "1.2.7",
   "author": {
     "name": "iDuanJu 社区移植",
     "contact": "https://github.com/ericto888/iduanju-sources"
   },
-  "description": "修复搜索结果 /video/数字ID/ 详情链接识别，兼容剧集详情页与封面提取；保留旧 /drama/ 路径兼容。",
+  "description": "修复搜索无分页时 E_PARSE；记录搜索结果所属站点，详情与播放沿用原站点，避免数字 ID 错发到 hgdju.com。",
   "type": "shortdrama",
   "adult": true,
   "minAppVersion": "1.5",
