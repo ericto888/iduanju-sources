@@ -4,7 +4,7 @@ const LEGACY_NAV_URLS = ["https://hgdja1.com/"];
 const CACHE_KEY = "huanggua.latestHost.v1";
 const CACHE_TTL = 30 * 60 * 1000;
 const SEED_HOSTS = ["https://hgdj17.com","https://hgdjb15.com","https://hgdj1.app","https://abc.ywwegfkd.cc","https://qwer.ywwegfkd.cc","https://xyz.ywwegfkd.cc","https://mkqjue.eyrkjyudz.cc","https://porncz.eyrkjyudz.cc","https://rixgqa.eyrkjyudz.cc"];
-const ALLOWED_SUFFIXES = ["hgdju.com","hgdja1.com","hgdj1.app","hgdj17.com","hgdjb15.com","ywwegfkd.cc","eyrkjyudz.cc"];
+const ALLOWED_SUFFIXES = ["hgdju.com","hgdja1.com","hgdj1.app","hgdj17.com","hgdjb15.com","ywwegfkd.cc","eyrkjyudz.cc","hzeqbmes.cc"];
 const CATEGORIES = [{id:"aiduanju",name:"AI短剧"},{id:"manju",name:"AI漫剧"},{id:"mogai",name:"AI魔改"},{id:"zhenren",name:"真人短剧"},{id:"yuanchuang",name:"原创短剧"},{id:"browse",name:"全部"}];
 const CATEGORY_IDS = ["","aiduanju","manju","mogai","zhenren","yuanchuang","browse"];
 const CARD_SPLIT = '<article data-xpch="card-drama"';
@@ -66,7 +66,8 @@ function readCachedHost() {
 }
 function writeCachedHost(v) { try{host.storage.set(CACHE_KEY,JSON.stringify({host:v,updatedAt:Date.now()}));}catch(e){} }
 async function validateHost(c) {
-  try { const p=await getText(c+"/aiduanju",c+"/",12000);return p.body.includes("黄瓜短剧")&&p.body.includes("/drama/"); }
+  // 首页比固定分类路径更稳定；分类 slug 在站点换版时可能改名。
+  try { const p=await getText(c+"/",c+"/",12000);return p.body.includes("黄瓜短剧")&&p.body.includes("/drama/"); }
   catch(e){return false;}
 }
 async function getHost(forceRefresh) {
@@ -184,12 +185,23 @@ function parsePlayUrl(body) {
   const genericMatch = M3U8_RE.exec(body);
   return genericMatch ? unescapePlayUrl(genericMatch[0]) : "";
 }
-const CATEGORY_CACHE_PREFIX = "huanggua.category.v1.";
+const CATEGORY_CACHE_PREFIX = "huanggua.category.v2.";
 const CATEGORY_CACHE_TTL = 10 * 60 * 1000;
+const CATEGORY_PATHS = {
+  "": ["/browse/", "/browse", "/"],
+  aiduanju: ["/ai-duanju/", "/aiduanju/", "/aiduanju"],
+  manju: ["/ai-manju/", "/manju/", "/manju"],
+  mogai: ["/ai-mogai/", "/mogai/", "/mogai"],
+  zhenren: ["/zhenren/", "/zhenren"],
+  yuanchuang: ["/yuanchuang/", "/yuanchuang"]
+};
 
-function readCategoryCache(category,page) {
+function cacheHostKey(h) {
+  return str(h).replace(/^https?:\\/\\//i,"").replace(/[^a-zA-Z0-9.-]/g,"_").toLowerCase();
+}
+function readCategoryCache(h,category,page) {
   try {
-    const raw=host.storage.get(CATEGORY_CACHE_PREFIX+category+"."+page);
+    const raw=host.storage.get(CATEGORY_CACHE_PREFIX+cacheHostKey(h)+"."+category+"."+page);
     const value=typeof raw==="string"?JSON.parse(raw):raw;
     if(value&&Array.isArray(value.items)&&value.items.length&&Number(value.savedAt)>0) {
       return {items:value.items,hasMore:!!value.hasMore,savedAt:Number(value.savedAt)};
@@ -197,32 +209,109 @@ function readCategoryCache(category,page) {
   } catch(e) {}
   return null;
 }
-function writeCategoryCache(category,page,result) {
+function writeCategoryCache(h,category,page,result) {
   try {
-    host.storage.set(CATEGORY_CACHE_PREFIX+category+"."+page,JSON.stringify({
+    host.storage.set(CATEGORY_CACHE_PREFIX+cacheHostKey(h)+"."+category+"."+page,JSON.stringify({
       items:result.items,hasMore:!!result.hasMore,savedAt:Date.now()
     }));
   } catch(e) {}
 }
+function pageNumberFromHref(href) {
+  const path=str(href).split(/[?#]/)[0].replace(/\\/+$/,"");
+  let m=/\\/(?:page-)(\\d+)$/i.exec(path);
+  if(m)return Number(m[1]);
+  m=/\\/(\\d+)$/i.exec(path);
+  return m?Number(m[1]):0;
+}
+function paginationLinks(body,h,basePath) {
+  const found={},html=String(body||"");
+  const re=/<a\\b([^>]*href=["']([^"']+)["'][^>]*)>([\\s\\S]*?)<\\/a>/gi;
+  let m;
+  while((m=re.exec(html))!==null) {
+    const href=str(m[2]);if(!href)continue;
+    let absolute="";
+    try{absolute=host.url.resolve(h+"/",href);}catch(e){continue;}
+    if(!absolute.startsWith(h+"/")&&!absolute.startsWith(h+"?"))continue;
+    const n=pageNumberFromHref(absolute);
+    const text=htmlText(m[3]+" "+m[1]);
+    if(n>0)found[n]=absolute;
+    if(/rel=["']next["']|下一页|下页|next/i.test(m[1]+" "+text))found.next=absolute;
+  }
+  return found;
+}
+function pagePaths(category,page,links) {
+  const bases=CATEGORY_PATHS[str(category)]||[];
+  const linked=links&&links[page];
+  if(linked)return [linked];
+  const out=[];
+  for(const base of bases) {
+    const root=base.endsWith("/")?base:base+"/";
+    if(page===1)out.push(base);
+    else out.push(root+page+"/",root+"page-"+page,root+"page-"+page+"/");
+  }
+  return Array.from(new Set(out));
+}
+async function fetchCategoryPage(h,category,page) {
+  const bases=CATEGORY_PATHS[str(category)]||[];
+  let links={};
+  if(page>1) {
+    // 先从首页真实分页锚点获取站点当前使用的路由，不假设 page-N 或数字路径。
+    for(const base of bases) {
+      try {
+        const first=await pageWithRefresh(h+base,h+"/",b=>b.includes(CARD_SPLIT));
+        links=paginationLinks(first,h,base);
+        if(Object.keys(links).length)break;
+      } catch(e) {}
+    }
+  }
+  const candidates=pagePaths(category,page,links);
+  let lastError=null;
+  for(const target of candidates) {
+    try {
+      const url=/^https?:\\/\\//i.test(target)?target:h+target;
+      const body=await pageWithRefresh(url,h+"/",b=>b.includes(CARD_SPLIT));
+      const items=parseCards(body,h);
+      if(items.length) {
+        const nextLinks=paginationLinks(body,h,target);
+        const hasMore=!!nextLinks.next||Object.keys(nextLinks).some(k=>k!=="next"&&Number(k)>page)||items.length>=12;
+        return {items,hasMore};
+      }
+      lastError=host.error("E_PARSE","该分页没有解析到剧集");
+    } catch(e) { lastError=e; }
+  }
+  throw lastError||host.error("E_PARSE","黄瓜短剧分页地址不可用");
+}
 async function listCategory(page,category) {
-  const p=Math.max(1,Math.floor(Number(page)||1));if(p>1)return{items:[],hasMore:false};
+  const p=Math.max(1,Math.floor(Number(page)||1));
   if(!CATEGORY_IDS.includes(str(category)))fail("E_PARSE","黄瓜短剧分类无效");
-  const cached=readCategoryCache(category,p);
+  const h=await getHost(),cached=readCategoryCache(h,category,p);
   if(cached&&Date.now()-cached.savedAt<CATEGORY_CACHE_TTL) {
     return {items:cached.items,hasMore:cached.hasMore};
   }
   try {
-    const h=await getHost(),path=category===""?"/":"/"+category;
-    const body=await pageWithRefresh(h+path,h+"/",b=>b.includes("黄瓜短剧")&&b.includes(CARD_SPLIT));
-    const items=parseCards(body,h);if(!items.length)fail("E_PARSE","黄瓜短剧没有返回剧集，请稍后重试");
-    const result={items,hasMore:false};
-    writeCategoryCache(category,p,result);
+    const result=await fetchCategoryPage(h,category,p);
+    writeCategoryCache(h,category,p,result);
     return result;
   } catch(e) {
     // 网络/线路短暂异常时优先展示上次成功结果，不让切换分类后出现整页空白。
     if(cached&&cached.items.length)return {items:cached.items,hasMore:cached.hasMore};
     throw e;
   }
+}
+async function searchDramas(keyword) {
+  const h=await getHost(),q=str(keyword);
+  if(!q)return {items:[],hasMore:false};
+  const paths=["/search?q="+encodeURIComponent(q),"/search?keyword="+encodeURIComponent(q),"/search?wd="+encodeURIComponent(q)];
+  let lastError=null;
+  for(const path of paths) {
+    try {
+      const body=await pageWithRefresh(h+path,h+"/",b=>b.includes(CARD_SPLIT));
+      const items=parseCards(body,h);
+      if(items.length)return {items,hasMore:false};
+      lastError=host.error("E_PARSE","搜索结果页面未解析到剧集");
+    } catch(e) { lastError=e; }
+  }
+  throw lastError||host.error("E_PARSE","黄瓜短剧搜索暂不可用");
 }
 async function getDetail(alias) {
   alias=str(alias);if(!/^[a-zA-Z0-9-]+$/.test(alias))fail("E_PARSE","黄瓜短剧剧集 ID 无效");
@@ -237,7 +326,7 @@ async function getDetail(alias) {
 export default {
   async home(){return{categories:CATEGORIES.filter(c=>str(c.id)!==""&&str(c.name)!=="推荐")};},
   async category({id="",page=1}){const r=await listCategory(page,id);return{items:r.items,page:Math.max(1,Number(page)||1),hasMore:r.hasMore};},
-  async search({keyword}){if(!str(keyword))return{items:[],hasMore:false};fail("E_UNSUPPORTED","黄瓜短剧当前站点没有可用的搜索接口");},
+  async search({keyword}){return await searchDramas(keyword);},
   async detail({id}){const r=await getDetail(id);return{title:r.title,cover:r.cover,desc:r.desc,lines:[{name:"默认线路",episodes:r.chapters}]};},
   async play({episodeId}){
     let stage="validate episode";
