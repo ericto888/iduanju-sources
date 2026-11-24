@@ -38,8 +38,8 @@
       "manifest": "https://raw.githubusercontent.com/ericto888/iduanju-sources/main/sources/com.eric.idj.xvideos/manifest.json",
       "type": "video",
       "adult": true,
-      "version": "1.0.4",
-      "description": "XVideos：播放线路按 1080P、720P、480P 清晰度展示，移除页面内重复/无关 MP4 直链；保留自动 HLS。",
+      "version": "1.0.5",
+      "description": "XVideos：增强播放器清晰度提取，兼容播放器方法与 mediaDefinitions，按 1080P、720P、480P 显示。",
       "category": "video",
       "author": "iDuanJu 社区移植"
     }
