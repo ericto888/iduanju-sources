@@ -1,40 +1,34 @@
-// 黄瓜短剧 · iDuanJu idj1 插件（由 GuoApp 黄瓜短剧 1.0.2 适配）
-const NAV_URL = "https://hgdju.com/homeward";
-const LEGACY_NAV_URLS = ["https://hgdja1.com/"];
-const CACHE_KEY = "huanggua.latestHost.v1";
-const HOSTS_CACHE_KEY = "huanggua.domains.v2";
-const ENTRY_CACHE_KEY = "huanggua.domesticEntry.v2";
-const CACHE_TTL = 10 * 60 * 1000;
-const SEED_HOSTS = ["https://hgdj17.com","https://hgdjb15.com","https://hgdj1.app","https://abc.ywwegfkd.cc","https://qwer.ywwegfkd.cc","https://xyz.ywwegfkd.cc","https://mkqjue.eyrkjyudz.cc","https://porncz.eyrkjyudz.cc","https://rixgqa.eyrkjyudz.cc","https://porncz.hzeqbmes.cc"];
-const ALLOWED_SUFFIXES = ["hgdju.com","hgdja1.com","hgdj1.app","hgdj17.com","hgdjb15.com","ywwegfkd.cc","eyrkjyudz.cc","hzeqbmes.cc"];
+// 黄瓜短剧 · iDuanJu idj1 插件
+// 官方唯一站点：hgdju.com。其他域名不属于黄瓜短剧，不参与发现、缓存或故障切换。
+const SITE_ORIGIN = "https://hgdju.com";
+const NAV_URL = SITE_ORIGIN + "/homeward";
 const CATEGORIES = [{id:"yuanchuang",name:"原创短剧"},{id:"aiduanju",name:"AI短剧"},{id:"mogai",name:"魔改"},{id:"manju",name:"漫剧"},{id:"zhenren",name:"真人"},{id:"browse",name:"推荐"}];
 const CATEGORY_IDS = ["yuanchuang","aiduanju","mogai","manju","zhenren","browse"];
 const CARD_SPLIT = '<article data-xpch="card-drama"';
-const ALIAS_RE = /href=["\']\/drama\/([a-zA-Z0-9_-]+)["\']/i;
-const IMG_TAG_RE = /<img\b[^>]*>/gi;
-const IMG_ATTR_RE = /([a-zA-Z:_-]+)\s*=\s*"([^"]*)"/g;
-const COVER_PATH_RE = /(\/_img\/[A-Za-z0-9+/=]+\.(?:jpeg|jpg|png|webp))/;
-const H1_RE = /<h1[^>]*>([\s\S]*?)<\/h1>/i;
-const DESC_RE = /<meta\s+name="description"\s+content="([^"]*)"/i;
-const EPISODE_RE = /(?:更新至|全)\s*(\d+)\s*集/;
-const HEAT_RE = /([0-9.]+万?)\s*热度/;
-const PLAY_URL_RE = /"source_url"\s*:\s*"([^"]+)"/;
-const ESCAPED_M3U8_RE = /https?:\\u002[Ff]\\u002[Ff][^"]+?\.m3u8[^"]*/;
-const M3U8_RE = /https?:\/\/[^"'\s]+\.m3u8[^"'\s]*/;
-const PAYLOAD_RE = /<script[^>]*id="__NUXT_DATA__"[^>]*>([\s\S]*?)<\/script>/i;
-let memoryHost = "", memoryHostAt = 0;
-
+const ALIAS_RE = /href=["\\']\\/drama\\/([a-zA-Z0-9_-]+)["\\']/i;
+const IMG_TAG_RE = /<img\\b[^>]*>/gi;
+const IMG_ATTR_RE = /([a-zA-Z:_-]+)\\s*=\\s*"([^"]*)"/g;
+const COVER_PATH_RE = /(\\/_img\\/[A-Za-z0-9+/=]+\\.(?:jpeg|jpg|png|webp))/;
+const H1_RE = /<h1[^>]*>([\\s\\S]*?)<\\/h1>/i;
+const DESC_RE = /<meta\\s+name="description"\\s+content="([^"]*)"/i;
+const EPISODE_RE = /(?:更新至|全)\\s*(\\d+)\\s*集/;
+const HEAT_RE = /([0-9.]+万?)\\s*热度/;
+const PLAY_URL_RE = /"source_url"\\s*:\\s*"([^"]+)"/;
+const ESCAPED_M3U8_RE = /https?:\\\\u002[Ff]\\\\u002[Ff][^"]+?\\.m3u8[^"]*/;
+const M3U8_RE = /https?:\\/\\/[^"'\\s]+\\.m3u8[^"'\\s]*/;
+const PAYLOAD_RE = /<script[^>]*id="__NUXT_DATA__"[^>]*>([\\s\\S]*?)<\\/script>/i;
+let memoryHost = SITE_ORIGIN;
 function str(v) { return v == null ? "" : String(v).trim(); }
 function htmlText(v) {
   return str(v).replace(/<[^>]*>/g," ").replace(/&#x([0-9a-f]+);/gi,(m,n)=>String.fromCodePoint(parseInt(n,16)))
-    .replace(/&#(\d+);/g,(m,n)=>String.fromCodePoint(parseInt(n,10))).replace(/&nbsp;/gi," ")
+    .replace(/&#(\\d+);/g,(m,n)=>String.fromCodePoint(parseInt(n,10))).replace(/&nbsp;/gi," ")
     .replace(/&amp;/gi,"&").replace(/&lt;/gi,"<").replace(/&gt;/gi,">").replace(/&quot;/gi,'"')
-    .replace(/&#39;/g,"'").replace(/\s+/g," ").trim();
+    .replace(/&#39;/g,"'").replace(/\\s+/g," ").trim();
 }
 function validDramaTitle(value) {
   const title=htmlText(value);
   if(!title||title.length>100)return "";
-  const compact=title.replace(/[\s\u00a0]+/g,"");
+  const compact=title.replace(/[\\s\\u00a0]+/g,"");
   if(/^(?:都市|现代|古风|古装|校园|熟女|原创|魔改|AI短剧|AI漫剧|真人短剧|AI真人短剧)(?:标签)?(?:短剧|剧集|频道|作品)?$/i.test(compact))return "";
   return title;
 }
@@ -44,33 +38,32 @@ function chooseDramaTitle(values) {
 }
 function fail(code,message) { throw host.error(code,message); }
 function allowedHost(value) {
-  const m=/^https:\/\/([^/:?#]+)$/i.exec(str(value).replace(/\/+$/,""));
-  if(!m)return false;
-  const h=m[1].toLowerCase();
-  return ALLOWED_SUFFIXES.some(s=>h===s||h.endsWith("."+s));
+  return /^https:\\/\\/hgdju\\.com$/i.test(str(value).replace(/\\/+$/,""));
 }
-function addCandidate(list,seen,value) {
-  let c=str(value).replace(/[),.;]$/,"");
-  const m=/^https?:\/\/[^/]+/i.exec(c);
-  if(!m)return;
-  c=m[0].replace(/\/+$/,"").replace(/^http:/i,"https:");
-  if(!allowedHost(c)||seen[c])return;
-  seen[c]=true;list.push(c);
-}
-function extractCandidates(body) {
-  const s=String(body||"").replace(/&amp;/g,"&").replace(/\\\//g,"/");
-  return s.match(/https?:\/\/[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:\/[^\s"'<>]*)?/gi)||[];
+function originOf(value) {
+  const m=/^https?:\\/\\/[^/?#]+/i.exec(str(value));
+  return m?m[0].replace(/^http:/i,"https:"):"";
 }
 async function request(url,referer,timeout) {
+  const origin=originOf(url);
+  if(origin!==SITE_ORIGIN)fail("E_HOST","黄瓜短剧仅允许访问官方主站 hgdju.com");
   const r=await host.http.request({url,headers:referer?{Referer:referer}:{},timeout:timeout||20000});
   if(!r||r.status<200||r.status>=300)fail(r&&r.status===404?"E_NOT_FOUND":"E_HTTP","黄瓜短剧请求失败 HTTP "+(r?r.status:0)+"："+url);
   return r;
 }
 async function getText(url,referer,timeout) {
   const r=await request(url,referer,timeout);
-  return {body:str(r.body),url:str(r.url)||url,headers:r.headers||{},status:Number(r.status)||0};
+  const finalUrl=str(r.url)||url;
+  if(originOf(finalUrl)!==SITE_ORIGIN)fail("E_HOST","黄瓜短剧主站响应跳转到了非官方域名，已阻止访问");
+  return {body:str(r.body),url:finalUrl,headers:r.headers||{},status:Number(r.status)||0};
 }
-
+async function getHost() { return SITE_ORIGIN; }
+async function getTextWithFallback(url,referer,timeout) { return await getText(url,referer,timeout); }
+async function pageWithRefresh(url,referer,validator) {
+  const r=await getText(url,referer);
+  if(validator&&!validator(r.body,r.url,r))fail("E_PARSE","黄瓜短剧官方主站页面结构不可用");
+  return r.body;
+}
 function safeMediaAddress(value) {
   const m=/^(https?:\/\/[^/?#]+)([^?#]*)/i.exec(str(value));
   return m?m[1]+(m[2]||"/"):"";
@@ -104,195 +97,6 @@ async function probeMedia(media,referer) {
   // 有些 CDN 不接受 m3u8 的 Range 请求；再用普通 GET 区分 Range 限制与资源本身被拒绝。
   return await one("normal-get",{});
 }
-function readCachedHost() {
-  try {
-    const v=host.storage.get(CACHE_KEY),p=typeof v==="string"?JSON.parse(v):v;
-    const savedAt=Number(p&&p.updatedAt)||0;
-    if(p&&typeof p.host==="string"&&allowedHost(p.host)&&savedAt>0&&Date.now()-savedAt<CACHE_TTL)return p.host;
-  } catch(e) {}
-  return "";
-}
-function readCachedHosts() {
-  try {
-    const raw=host.storage.get(HOSTS_CACHE_KEY),value=typeof raw==="string"?JSON.parse(raw):raw;
-    if(value&&Array.isArray(value.hosts))return value.hosts.filter(allowedHost);
-  } catch(e) {}
-  const legacy=readCachedHost();
-  return legacy?[legacy]:[];
-}
-function readCachedEntry() {
-  try {
-    const raw=host.storage.get(ENTRY_CACHE_KEY),value=str(raw);
-    return allowedHost(value)&&isDiscoveryHost(value)?value:"";
-  } catch(e) { return ""; }
-}
-function writeCachedHost(v) {
-  try{host.storage.set(CACHE_KEY,JSON.stringify({host:v,updatedAt:Date.now()}));}catch(e){}
-}
-function writeCachedHosts(hosts,entry) {
-  try {
-    const unique=[];
-    for(const value of hosts||[])if(allowedHost(value)&&!isDiscoveryHost(value)&&!unique.includes(value))unique.push(value);
-    host.storage.set(HOSTS_CACHE_KEY,JSON.stringify({hosts:unique.slice(0,30),updatedAt:Date.now()}));
-    if(entry&&allowedHost(entry))host.storage.set(ENTRY_CACHE_KEY,entry);
-  } catch(e) {}
-}
-function isDiscoveryHost(value) {
-  const h=str(value).replace(/^https:\/\//i,"").toLowerCase();
-  return h==="hgdju.com"||h.endsWith(".hgdju.com")||h==="hgdja1.com"||h.endsWith(".hgdja1.com");
-}
-function originOf(value) {
-  const m=/^(https?:\/\/[^/?#]+)/i.exec(str(value));
-  return m?m[1].replace(/^http:/i,"https:"):"";
-}
-function collectPageCandidates(body,headers,candidates,seen,entries,entrySeen) {
-  const found=extractCandidates(body);
-  const location=headers&&(headers.location||headers.Location);
-  if(location)found.unshift(location);
-  for(const value of found) {
-    const origin=originOf(value);
-    if(!origin||!allowedHost(origin))continue;
-    if(isDiscoveryHost(origin)) {
-      if(!entrySeen[origin]){entrySeen[origin]=true;entries.push(origin);}
-    } else addCandidate(candidates,seen,origin);
-  }
-}
-async function fetchDiscoveryPage(address,candidates,seen,entries,entrySeen) {
-  try {
-    const r=await getText(address,address,6500,false);
-    collectPageCandidates(r.body,r.headers,candidates,seen,entries,entrySeen);
-    const finalOrigin=originOf(r.url);
-    if(finalOrigin&&isDiscoveryHost(finalOrigin)&&!entrySeen[finalOrigin]) {
-      entrySeen[finalOrigin]=true;entries.push(finalOrigin);
-    }
-    return true;
-  } catch(e) {
-    try{host.log("[黄瓜域名发现] entry="+address+" failed="+str(e&&e.message||e).slice(0,180));}catch(ignore){}
-    return false;
-  }
-}
-async function validateHost(c,requireSearch) {
-  const paths=requireSearch
-    ? ["/search?q=%E6%93%8D%E4%BB%99"]
-    : ["/","/browse","/drama/18-1955-9f8f"];
-  for(const path of paths) {
-    try {
-      const p=await getText(c+path,c+"/",8500,false);
-      if(requireSearch
-        ? (hasDramaCards(p.body)&&parseCards(p.body,c).length>0)
-        : (p.body.includes("黄瓜短剧")&&(p.body.includes("/video/")||p.body.includes("/drama/"))))return true;
-    } catch(e) {}
-  }
-  return false;
-}
-async function getHost(forceRefresh,requireSearch,excludeHost) {
-  const excluded=originOf(excludeHost)||str(excludeHost);
-  if(!forceRefresh&&memoryHost&&memoryHost!==excluded&&Date.now()-memoryHostAt<CACHE_TTL) {
-    if(!requireSearch||await validateHost(memoryHost,true))return memoryHost;
-    memoryHost="";memoryHostAt=0;
-  }
-
-  // 同时探测主站和国内分发入口：主站可达时优先使用主站刚发布的线路；
-  // 主站不可达时，国内入口结果优先，不必等待主域名完整超时后才开始发现。
-  const primaryCandidates=[],primarySeen={},primaryEntries=[],primaryEntrySeen={};
-  const domesticCandidates=[],domesticSeen={},domesticEntries=[],domesticEntrySeen={};
-  const primaryTask=(async()=>{
-    try {
-      const primary=await getText(NAV_URL,NAV_URL,3000,false);
-      collectPageCandidates(primary.body,primary.headers,primaryCandidates,primarySeen,primaryEntries,primaryEntrySeen);
-      const finalOrigin=originOf(primary.url);
-      if(finalOrigin&&isDiscoveryHost(finalOrigin)&&!primaryEntrySeen[finalOrigin]) {
-        primaryEntrySeen[finalOrigin]=true;primaryEntries.push(finalOrigin);
-      }
-      host.log("[黄瓜域名发现] mode=primary-reachable source="+NAV_URL);
-      return true;
-    } catch(e) {
-      host.log("[黄瓜域名发现] mode=domestic-first primary-unreachable="+str(e&&e.message||e).slice(0,160));
-      return false;
-    }
-  })();
-  const domesticTask=fetchDiscoveryPage("https://hgdja1.com/",domesticCandidates,domesticSeen,domesticEntries,domesticEntrySeen);
-  const [primaryReachable]=await Promise.all([primaryTask,domesticTask]);
-
-  const candidates=[],seen={},entries=[],entrySeen={};
-  const preferredCandidates=primaryReachable
-    ? primaryCandidates.concat(domesticCandidates)
-    : domesticCandidates.concat(primaryCandidates);
-  for(const value of preferredCandidates)addCandidate(candidates,seen,value);
-  const preferredEntries=primaryReachable
-    ? primaryEntries.concat(domesticEntries)
-    : domesticEntries.concat(primaryEntries);
-  for(const value of preferredEntries) {
-    if(!entrySeen[value]){entrySeen[value]=true;entries.push(value);}
-  }
-
-  const savedEntry=readCachedEntry();
-  if(savedEntry&&!entrySeen[savedEntry]){entrySeen[savedEntry]=true;entries.push(savedEntry);}
-  for(const address of LEGACY_NAV_URLS) {
-    const entry=originOf(address);
-    if(entry&&!entrySeen[entry]){entrySeen[entry]=true;entries.push(entry);}
-  }
-  // 主站可能公布了新的国内分发入口；已并发探测过的 hgdja1 不重复请求。
-  for(const entry of entries) {
-    if(entry==="https://hgdja1.com")continue;
-    await fetchDiscoveryPage(entry+"/",candidates,seen,entries,entrySeen);
-  }
-
-  // 新发现线路优先；缓存线路用于入口暂时不可用时兜底；内置旧线路只作为最后回退。
-  for(const value of readCachedHosts())addCandidate(candidates,seen,value);
-  addCandidate(candidates,seen,memoryHost);
-  for(const seed of SEED_HOSTS)addCandidate(candidates,seen,seed);
-
-  const usable=[];
-  for(const c of candidates) {
-    if(isDiscoveryHost(c)||c===excluded)continue;
-    if(await validateHost(c,!!requireSearch))usable.push(c);
-  }
-  if(usable.length) {
-    memoryHost=usable[0];memoryHostAt=Date.now();
-    writeCachedHost(memoryHost);
-    writeCachedHosts(usable,entries[0]||savedEntry||"");
-    host.log("[黄瓜域名选择] mode="+(primaryReachable?"primary-discovery":"domestic-first")+
-      " selected="+memoryHost+" candidates="+JSON.stringify(usable.slice(0,12)));
-    return memoryHost;
-  }
-  fail("E_NETWORK",requireSearch
-    ? "黄瓜短剧未发现支持搜索的国内可用线路，请检查网络或刷新线路后重试"
-    : "黄瓜短剧未发现可用国内线路；请检查网络后重试");
-}
-async function getTextWithFallback(url,referer,timeout) {
-  try { return await getText(url,referer,timeout); }
-  catch(e) {
-    if((e&&e.code==="E_NOT_FOUND")||/HTTP 404/.test(str(e&&e.message||e)))throw e;
-    const failed=originOf(url);
-    const fresh=await getHost(true,false,failed);
-    if(!fresh||fresh===failed)throw e;
-    const m=/^https?:\/\/[^/]+(\/[^?#]*)?(\?[^#]*)?/i.exec(url);
-    const path=(m&&m[1]?m[1]:"/")+(m&&m[2]?m[2]:"");
-    const ref=originOf(referer)===failed?fresh+"/":referer;
-    host.log("[黄瓜线路切换] from="+failed+" to="+fresh+" path="+path);
-    return await getText(fresh+path,ref,timeout);
-  }
-}
-async function pageWithRefresh(url,referer,validator) {
-  try {
-    const r=await getText(url,referer);
-    if(!validator||validator(r.body,r.url,r))return r.body;
-  } catch(e) {
-    // 404 表示该集在当前线路确实不存在，不应刷新线路后重复请求同一个失效集数。
-    if(e&&e.code==="E_NOT_FOUND")throw e;
-    if(/HTTP 404/.test(String(e&&e.message||e)))throw e;
-  }
-  // 刷新线路时必须保留原请求的完整路径和查询参数，不能把 /search?q=剧名
-  // 丢成 /search，否则站点可能返回首页推荐列表并被误认为搜索结果。
-  const fresh=await getHost(true,false,originOf(url));
-  const m=/^https?:\/\/[^/]+(\/[^?#]*)?(\?[^#]*)?/i.exec(url);
-  const target=(m&&m[1]?m[1]:"/")+(m&&m[2]?m[2]:"");
-  const r=await getText(fresh+target,fresh+"/");
-  if(validator&&!validator(r.body,r.url,r))fail("E_PARSE","黄瓜短剧最新地址已刷新，但页面结构仍不可用");
-  return r.body;
-}
-
 function base64Raw(value) {
   const a="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/",b=[];
   for(let i=0;i<value.length;i++){const c=value.charCodeAt(i);if(c<128)b.push(c);else if(c<2048)b.push(192|(c>>6),128|(c&63));else b.push(224|(c>>12),128|((c>>6)&63),128|(c&63));}
@@ -662,10 +466,7 @@ function rememberSearchItemHost(items,siteHost) {
     try { host.storage.set(SEARCH_ITEM_HOST_PREFIX+id,siteHost); } catch(e) {}
   }
 }
-function rememberedSearchItemHost(id) {
-  try { const value=str(host.storage.get(SEARCH_ITEM_HOST_PREFIX+str(id))); return allowedHost(value)?value:""; }
-  catch(e) { return ""; }
-}
+function rememberedSearchItemHost(id) { return SITE_ORIGIN; }
 function normalizeSearchText(value) {
   return str(value).toLowerCase().replace(/[\s.,!?;:，。！？；：、·"'“”‘’（）()\[\]{}<>《》…—_-]+/g,"");
 }
@@ -692,7 +493,7 @@ function searchKeywordVariants(keyword) {
   if(chars.length>3)add(chars.slice(0,3).join(""));
   return out;
 }
-const SEARCH_ITEM_HOST_PREFIX = "huanggua.searchItemHost.";
+const SEARCH_ITEM_HOST_PREFIX = "huanggua.searchItemHost."; // 仅兼容旧数据；所有详情固定走官方主站
 
 
 function searchDiagnostics(body, response, term, page, requestedUrl) {
@@ -851,7 +652,7 @@ async function getDetail(alias) {
   let h=rememberedSearchItemHost(alias)||await getHost();
   const route=numeric?"/video/":"/drama/";
   const url=h+route+encodeURIComponent(alias)+"/";
-  const response=await getTextWithFallback(url,h+"/",20000);
+  const response=await getText(url,h+"/",20000);
   h=originOf(response.url)||h;
   const body=response.body;
   detailDiagnostics(body,response,alias,url);
@@ -897,7 +698,7 @@ export default {
       stage="fetch play page";
       let body;
       if(numeric||rememberedSearchItemHost(p[0])) {
-        const playResponse=await getTextWithFallback(url,numeric?h+"/":url,20000);
+        const playResponse=await getText(url,numeric?h+"/":url,20000);
         body=playResponse.body;
         url=playResponse.url||url;
         h=originOf(url)||h;
