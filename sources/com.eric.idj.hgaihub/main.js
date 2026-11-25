@@ -6,7 +6,6 @@ const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
 
 const CATEGORIES = [
   { id: 'newest', name: '最新上新' },
-  { id: 'recommend', name: '精选推荐' },
   { id: 'yuanchuang', name: '黄瓜原创' },
   { id: 'duanju', name: 'AI短剧' },
   { id: 'manju', name: 'AI漫剧' },
@@ -119,7 +118,6 @@ function categoryPath(id, page) {
   const key = clean(id);
   const suffix = page > 1 ? String(page) + '/' : '';
   if (key === 'newest') return page > 1 ? '/newest/' + page + '/' : '/newest';
-  if (key === 'recommend') return page > 1 ? '' : '/recommend';
   if (key === 'yuanchuang') return '/ai-yuanchuang/' + suffix;
   if (key === 'duanju') return '/ai-duanju/' + suffix;
   if (key === 'manju') return '/ai-manju/' + suffix;
