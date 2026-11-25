@@ -5,30 +5,30 @@ const NAV_URL = SITE_ORIGIN + "/homeward";
 const CATEGORIES = [{id:"yuanchuang",name:"原创短剧"},{id:"aiduanju",name:"AI短剧"},{id:"mogai",name:"魔改"},{id:"manju",name:"漫剧"},{id:"zhenren",name:"真人"},{id:"browse",name:"推荐"}];
 const CATEGORY_IDS = ["yuanchuang","aiduanju","mogai","manju","zhenren","browse"];
 const CARD_SPLIT = '<article data-xpch="card-drama"';
-const ALIAS_RE = /href=["\\']\\/drama\\/([a-zA-Z0-9_-]+)["\\']/i;
-const IMG_TAG_RE = /<img\\b[^>]*>/gi;
-const IMG_ATTR_RE = /([a-zA-Z:_-]+)\\s*=\\s*"([^"]*)"/g;
-const COVER_PATH_RE = /(\\/_img\\/[A-Za-z0-9+/=]+\\.(?:jpeg|jpg|png|webp))/;
-const H1_RE = /<h1[^>]*>([\\s\\S]*?)<\\/h1>/i;
-const DESC_RE = /<meta\\s+name="description"\\s+content="([^"]*)"/i;
-const EPISODE_RE = /(?:更新至|全)\\s*(\\d+)\\s*集/;
-const HEAT_RE = /([0-9.]+万?)\\s*热度/;
-const PLAY_URL_RE = /"source_url"\\s*:\\s*"([^"]+)"/;
-const ESCAPED_M3U8_RE = /https?:\\\\u002[Ff]\\\\u002[Ff][^"]+?\\.m3u8[^"]*/;
-const M3U8_RE = /https?:\\/\\/[^"'\\s]+\\.m3u8[^"'\\s]*/;
-const PAYLOAD_RE = /<script[^>]*id="__NUXT_DATA__"[^>]*>([\\s\\S]*?)<\\/script>/i;
+const ALIAS_RE = /href=["']\/drama\/([a-zA-Z0-9_-]+)["']/i;
+const IMG_TAG_RE = /<img\b[^>]*>/gi;
+const IMG_ATTR_RE = /([a-zA-Z:_-]+)\s*=\s*"([^"]*)"/g;
+const COVER_PATH_RE = /(\/_img\/[A-Za-z0-9+/=]+\.(?:jpeg|jpg|png|webp))/;
+const H1_RE = /<h1[^>]*>([\s\S]*?)<\/h1>/i;
+const DESC_RE = /<meta\s+name="description"\s+content="([^"]*)"/i;
+const EPISODE_RE = /(?:更新至|全)\s*(\d+)\s*集/;
+const HEAT_RE = /([0-9.]+万?)\s*热度/;
+const PLAY_URL_RE = /"source_url"\s*:\s*"([^"]+)"/;
+const ESCAPED_M3U8_RE = /https?:\\u002[Ff]\\u002[Ff][^"]+?\.m3u8[^"]*/;
+const M3U8_RE = /https?:\/\/[^"'\s]+\.m3u8[^"'\s]*/;
+const PAYLOAD_RE = /<script[^>]*id="__NUXT_DATA__"[^>]*>([\s\S]*?)<\/script>/i;
 let memoryHost = SITE_ORIGIN;
 function str(v) { return v == null ? "" : String(v).trim(); }
 function htmlText(v) {
   return str(v).replace(/<[^>]*>/g," ").replace(/&#x([0-9a-f]+);/gi,(m,n)=>String.fromCodePoint(parseInt(n,16)))
-    .replace(/&#(\\d+);/g,(m,n)=>String.fromCodePoint(parseInt(n,10))).replace(/&nbsp;/gi," ")
+    .replace(/&#(\d+);/g,(m,n)=>String.fromCodePoint(parseInt(n,10))).replace(/&nbsp;/gi," ")
     .replace(/&amp;/gi,"&").replace(/&lt;/gi,"<").replace(/&gt;/gi,">").replace(/&quot;/gi,'"')
-    .replace(/&#39;/g,"'").replace(/\\s+/g," ").trim();
+    .replace(/&#39;/g,"'").replace(/\s+/g," ").trim();
 }
 function validDramaTitle(value) {
   const title=htmlText(value);
   if(!title||title.length>100)return "";
-  const compact=title.replace(/[\\s\\u00a0]+/g,"");
+  const compact=title.replace(/[\s\u00a0]+/g,"");
   if(/^(?:都市|现代|古风|古装|校园|熟女|原创|魔改|AI短剧|AI漫剧|真人短剧|AI真人短剧)(?:标签)?(?:短剧|剧集|频道|作品)?$/i.test(compact))return "";
   return title;
 }
@@ -38,10 +38,10 @@ function chooseDramaTitle(values) {
 }
 function fail(code,message) { throw host.error(code,message); }
 function allowedHost(value) {
-  return /^https:\\/\\/hgdju\\.com$/i.test(str(value).replace(/\\/+$/,""));
+  return /^https:\/\/hgdju\.com$/i.test(str(value).replace(/\/+$/,""));
 }
 function originOf(value) {
-  const m=/^https?:\\/\\/[^/?#]+/i.exec(str(value));
+  const m=/^https?:\/\/[^/?#]+/i.exec(str(value));
   return m?m[0].replace(/^http:/i,"https:"):"";
 }
 async function request(url,referer,timeout) {
