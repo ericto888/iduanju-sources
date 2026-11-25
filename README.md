@@ -6,6 +6,7 @@
 - 插件规范：[iDuanJu idj1 插件规范](https://github.com/ericto888/iDuanJu/blob/main/docs/plugins/SPEC_ZH.md)
 - 插件目录：`sources/<plugin-id>/manifest.json` 和 manifest 指定的入口脚本
 - 自动检查：push / Pull Request 会运行目录校验
+- 首页分类接入规范：[站源首页与分类导航协议](./docs/HOME_CATEGORY_PROTOCOL_ZH.md)
 
 ## 添加一个站源
 
