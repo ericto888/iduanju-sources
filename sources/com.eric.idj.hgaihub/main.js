@@ -4,28 +4,15 @@
 const ORIGIN = 'https://hgaihub.com';
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 
-// 开梯子优先主站；不开梯子时自动切到国内分发入口。成功入住的入口记在插件私有存储里。
-const HOSTS = [
-  'https://hgaihub.com',
-  'https://aaa.hzeqbmes.cc',
-  'https://bbb.hzeqbmes.cc',
-  'https://96ac.hzeqbmes.cc',
-  'https://porncz.hzeqbmes.cc',
-  'https://rixgqa.hzeqbmes.cc',
-  'https://mkqjue.hzeqbmes.cc',
-  'https://jsjs.ycwzusvz.cc',
-  'https://d21afzrkgm7yqk.cloudfront.net'
-];
-// 地址发布页：主站 go-home、hgdja4 导航页，以及国内镜像自带的 go-home。
-const RELEASE_PAGES = [
-  'https://hgaihub.com/go-home/',
-  'https://hgdja4.com/',
-  'https://hgdja4.com/go-home/',
-  'https://aaa.hzeqbmes.cc/go-home/',
-  'https://jsjs.ycwzusvz.cc/go-home/'
-];
+// 只有主站和地址发布页是固定的；aaa.hzeqbmes.cc 这类镜像会轮换，必须从发布页现取。
+const MIRRORS_KEY = 'mirrors';
 const HOST_KEY = 'host';
-const DISCOVERED_KEY = 'discovered';
+const RELEASE_PAGES = [
+  // hgdja4 的 go-home 支持 Range，域名在页面末尾，只取尾部可省流量。
+  { url: 'https://hgdja4.com/go-home/', tail: 65536 },
+  { url: 'https://hgaihub.com/go-home/' },
+  { url: 'https://hgdja4.com/' }
+];
 // 发布页里这些是跳转/统计/图床/旧站域名，不能当站点入口。
 const EXCLUDED_HOST_RE = /(^|\.)(gmail\.com|x\.com|gitlab\.com|googletagmanager\.com|telegram\.org|t\.me|mmgbaa\.cn|hgdju\.com|hgdja[0-9]*\.com|0v2zng-t1t1\.icu)$/i;
 
@@ -77,7 +64,7 @@ function isSitePage(body) {
   return /hg-drama-card|videoInitialData/.test(String(body || ''));
 }
 
-/** 记住的入口 + 发布页发现的新入口 + 内置入口，去重后依次尝试。 */
+/** 上次成功入口 + 发布页更新下来的备用域名 + 主站。 */
 function candidateHosts() {
   const out = [];
   function push(value) {
@@ -86,9 +73,9 @@ function candidateHosts() {
     out.push(base);
   }
   push(host.storage.get(HOST_KEY));
-  const discovered = host.storage.get(DISCOVERED_KEY);
-  if (Array.isArray(discovered)) for (let i = 0; i < discovered.length; i++) push(discovered[i]);
-  for (let i = 0; i < HOSTS.length; i++) push(HOSTS[i]);
+  const mirrors = host.storage.get(MIRRORS_KEY);
+  if (Array.isArray(mirrors)) for (let i = 0; i < mirrors.length; i++) push(mirrors[i]);
+  push(ORIGIN);
   return out;
 }
 
@@ -121,36 +108,47 @@ function collectHosts(body, found) {
     if (!dm) continue;
     const name = dm[1].toLowerCase();
     const base = 'https://' + name;
-    if (EXCLUDED_HOST_RE.test(name) || found.indexOf(base) !== -1) continue;
+    if (EXCLUDED_HOST_RE.test(name) || base === ORIGIN || found.indexOf(base) !== -1) continue;
     if (!host.http.allowed(base + '/')) continue;
     found.push(base);
   }
   return found;
 }
 
+/**
+ * 读取地址发布页，拿到当前最新的备用域名并覆盖写入插件存储。
+ * 只认第一个能成功返回的发布页，避免每次播放都等多个页面超时。
+ */
 async function discoverHosts() {
   const found = [];
   for (let i = 0; i < RELEASE_PAGES.length; i++) {
+    const page = RELEASE_PAGES[i];
     try {
-      const res = await host.http.request({
-        url: RELEASE_PAGES[i],
-        headers: { 'User-Agent': USER_AGENT, 'Accept-Language': 'zh-CN,zh;q=0.9' },
-        timeout: 8000
-      });
+      const headers = { 'User-Agent': USER_AGENT, 'Accept-Language': 'zh-CN,zh;q=0.9' };
+      if (page.tail) headers.Range = 'bytes=-' + page.tail;
+      const res = await host.http.request({ url: page.url, headers: headers, timeout: 5000 });
       if (res && res.status >= 200 && res.status < 300) collectHosts(res.body, found);
+      // Range 被忽略或页面改版导致尾部没有域名时，完整再取一次。
+      if (!found.length && page.tail) {
+        const full = await host.http.request({
+          url: page.url,
+          headers: { 'User-Agent': USER_AGENT, 'Accept-Language': 'zh-CN,zh;q=0.9' },
+          timeout: 8000
+        });
+        if (full && full.status >= 200 && full.status < 300) collectHosts(full.body, found);
+      }
+      if (found.length) break;
     } catch (e) {
-      host.log('发布页不可用：' + RELEASE_PAGES[i]);
+      host.log('发布页不可用：' + page.url);
     }
   }
-  const prior = host.storage.get(DISCOVERED_KEY);
-  if (Array.isArray(prior)) {
-    for (let i = 0; i < prior.length; i++) {
-      const base = clean(prior[i]).replace(/\/+$/, '');
-      if (/^https:\/\//i.test(base) && found.indexOf(base) === -1 && host.http.allowed(base + '/')) found.push(base);
-    }
+  if (found.length) {
+    host.storage.set(MIRRORS_KEY, found);
+    host.log('更新备用域名 ' + found.length + ' 个：' + found.join(', '));
+    return found;
   }
-  if (found.length) host.storage.set(DISCOVERED_KEY, found);
-  return found;
+  const prior = host.storage.get(MIRRORS_KEY);
+  return Array.isArray(prior) ? prior : [];
 }
 
 /** 依次尝试各入口；全部失败时重新读发布页，再试一轮。 */
@@ -375,6 +373,8 @@ export default {
     const vid = parts[0];
     const ep = Math.max(1, parseInt(parts[1], 10) || 1);
     if (!/^\d+$/.test(vid)) throw host.error('E_PARSE', '无效的剧集 id');
+    // 每次播放前都读一次地址发布页，把当前最新域名更新进备用列表。
+    await discoverHosts();
     const res = await fetchPage(ep === 1 ? '/video/' + vid + '/' : '/video/' + vid + '/ep-' + ep + '/');
     const data = initialData(res.body);
     let url = data ? absolute(data.videoSrc) : '';
