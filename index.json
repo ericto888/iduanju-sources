@@ -27,7 +27,7 @@
       "manifest": "https://raw.githubusercontent.com/ericto888/iduanju-sources/main/sources/com.eric.idj.huanggua/manifest.json",
       "type": "shortdrama",
       "adult": true,
-      "version": "1.4.6",
+      "version": "1.4.7",
       "description": "黄瓜短剧官方主站固定为 hgdju.com；移除非官方镜像域名与自动跨域切换。",
       "category": "shortdrama",
       "author": "iDuanJu 社区移植"
@@ -38,7 +38,7 @@
       "manifest": "https://raw.githubusercontent.com/ericto888/iduanju-sources/main/sources/com.eric.idj.hgaihub/manifest.json",
       "type": "shortdrama",
       "adult": true,
-      "version": "1.2.0",
+      "version": "1.2.1",
       "description": "黄瓜短剧 AI 站（hgaihub.com）：首页精选推荐与最新上新，原创/AI短剧/AI漫剧及热门标签分类，支持搜索、详情（简介顶部展示上线日期/出品/状态/播放量等）与逐集 m3u8 播放；镜像域名会轮换，每次播放自动从地址发布页刷新备用域名。",
       "category": "shortdrama",
       "author": "iDuanJu 社区移植"
