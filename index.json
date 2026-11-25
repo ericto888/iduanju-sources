@@ -27,8 +27,8 @@
       "manifest": "https://raw.githubusercontent.com/ericto888/iduanju-sources/main/sources/com.eric.idj.huanggua/manifest.json",
       "type": "shortdrama",
       "adult": true,
-      "version": "1.4.8",
-      "description": "黄瓜短剧官方主站固定为 hgdju.com；恢复官网真实推荐分类入口，保留首页 TOP5 轮播。",
+      "version": "1.4.9",
+      "description": "黄瓜短剧：启用与黄瓜AI短剧一致的首页分类货架能力，保留官网真实分类、首页 TOP5 轮播及播放功能。",
       "category": "shortdrama",
       "author": "iDuanJu 社区移植"
     },
@@ -49,10 +49,10 @@
       "manifest": "https://raw.githubusercontent.com/ericto888/iduanju-sources/main/sources/com.eric.idj.xvideos/manifest.json",
       "type": "video",
       "adult": true,
-      "version": "1.0.11",
       "description": "XVideos：新增分类浏览，分类置于上月最佳之后；保留多清晰度线路解析。",
       "category": "video",
-      "author": "iDuanJu 社区移植"
+      "author": "iDuanJu 社区移植",
+      "version": "1.0.11"
     }
   ]
 }
