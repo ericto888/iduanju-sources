@@ -17,7 +17,6 @@ const PLAY_URL_RE = /"source_url"\s*:\s*"([^"]+)"/;
 const ESCAPED_M3U8_RE = /https?:\\u002[Ff]\\u002[Ff][^"]+?\.m3u8[^"]*/;
 const M3U8_RE = /https?:\/\/[^"'\s]+\.m3u8[^"'\s]*/;
 const PAYLOAD_RE = /<script[^>]*id="__NUXT_DATA__"[^>]*>([\s\S]*?)<\/script>/i;
-let memoryHost = SITE_ORIGIN;
 function str(v) { return v == null ? "" : String(v).trim(); }
 function htmlText(v) {
   return str(v).replace(/<[^>]*>/g," ").replace(/&#x([0-9a-f]+);/gi,(m,n)=>String.fromCodePoint(parseInt(n,16)))
@@ -37,9 +36,6 @@ function chooseDramaTitle(values) {
   return "";
 }
 function fail(code,message) { throw host.error(code,message); }
-function allowedHost(value) {
-  return /^https:\/\/hgdju\.com$/i.test(str(value).replace(/\/+$/,""));
-}
 function originOf(value) {
   const m=/^https?:\/\/[^/?#]+/i.exec(str(value));
   return m?m[0].replace(/^http:/i,"https:"):"";
@@ -58,7 +54,6 @@ async function getText(url,referer,timeout) {
   return {body:str(r.body),url:finalUrl,headers:r.headers||{},status:Number(r.status)||0};
 }
 async function getHost() { return SITE_ORIGIN; }
-async function getTextWithFallback(url,referer,timeout) { return await getText(url,referer,timeout); }
 async function pageWithRefresh(url,referer,validator) {
   const r=await getText(url,referer);
   if(validator&&!validator(r.body,r.url,r))fail("E_PARSE","黄瓜短剧官方主站页面结构不可用");
@@ -574,7 +569,7 @@ async function searchDramas(keyword,page=1) {
       try {
         let links={},target=firstPath;
         if(p>1) {
-          const first=await getTextWithFallback(h+firstPath,h+"/",20000);
+          const first=await getText(h+firstPath,h+"/",20000);
           h=originOf(first.url)||h;
           if(!hasDramaCards(first.body))continue;
           links=paginationLinks(first.body,h);
@@ -582,14 +577,14 @@ async function searchDramas(keyword,page=1) {
           let found=false;
           for(const candidate of pageTargets) {
             try {
-              const check=await getTextWithFallback(/^https?:\/\//i.test(candidate)?candidate:h+candidate,h+"/",20000);
+              const check=await getText(/^https?:\/\//i.test(candidate)?candidate:h+candidate,h+"/",20000);
               if(hasDramaCards(check.body)) { target=candidate;found=true;break; }
             } catch(e) {}
           }
           if(!found)continue;
         }
         const requestUrl=/^https?:\/\//i.test(target)?target:h+target;
-        const result=await getTextWithFallback(requestUrl,h+"/",20000);
+        const result=await getText(requestUrl,h+"/",20000);
         h=originOf(result.url)||h;
         searchDiagnostics(result.body,result,term,p,requestUrl);
         if(!hasDramaCards(result.body))continue;
