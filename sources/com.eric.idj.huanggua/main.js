@@ -2,7 +2,9 @@
 const NAV_URL = "https://hgdju.com/homeward";
 const LEGACY_NAV_URLS = ["https://hgdja1.com/"];
 const CACHE_KEY = "huanggua.latestHost.v1";
-const CACHE_TTL = 30 * 60 * 1000;
+const HOSTS_CACHE_KEY = "huanggua.domains.v2";
+const ENTRY_CACHE_KEY = "huanggua.domesticEntry.v2";
+const CACHE_TTL = 10 * 60 * 1000;
 const SEED_HOSTS = ["https://hgdj17.com","https://hgdjb15.com","https://hgdj1.app","https://abc.ywwegfkd.cc","https://qwer.ywwegfkd.cc","https://xyz.ywwegfkd.cc","https://mkqjue.eyrkjyudz.cc","https://porncz.eyrkjyudz.cc","https://rixgqa.eyrkjyudz.cc","https://porncz.hzeqbmes.cc"];
 const ALLOWED_SUFFIXES = ["hgdju.com","hgdja1.com","hgdj1.app","hgdj17.com","hgdjb15.com","ywwegfkd.cc","eyrkjyudz.cc","hzeqbmes.cc"];
 const CATEGORIES = [{id:"yuanchuang",name:"原创短剧"},{id:"aiduanju",name:"AI短剧"},{id:"mogai",name:"魔改"},{id:"manju",name:"漫剧"},{id:"zhenren",name:"真人"},{id:"browse",name:"推荐"}];
@@ -110,51 +112,145 @@ function readCachedHost() {
   } catch(e) {}
   return "";
 }
-function writeCachedHost(v) { try{host.storage.set(CACHE_KEY,JSON.stringify({host:v,updatedAt:Date.now()}));}catch(e){} }
+function readCachedHosts() {
+  try {
+    const raw=host.storage.get(HOSTS_CACHE_KEY),value=typeof raw==="string"?JSON.parse(raw):raw;
+    if(value&&Array.isArray(value.hosts))return value.hosts.filter(allowedHost);
+  } catch(e) {}
+  const legacy=readCachedHost();
+  return legacy?[legacy]:[];
+}
+function readCachedEntry() {
+  try {
+    const raw=host.storage.get(ENTRY_CACHE_KEY),value=str(raw);
+    return allowedHost(value)&&isDiscoveryHost(value)?value:"";
+  } catch(e) { return ""; }
+}
+function writeCachedHost(v) {
+  try{host.storage.set(CACHE_KEY,JSON.stringify({host:v,updatedAt:Date.now()}));}catch(e){}
+}
+function writeCachedHosts(hosts,entry) {
+  try {
+    const unique=[];
+    for(const value of hosts||[])if(allowedHost(value)&&!isDiscoveryHost(value)&&!unique.includes(value))unique.push(value);
+    host.storage.set(HOSTS_CACHE_KEY,JSON.stringify({hosts:unique.slice(0,30),updatedAt:Date.now()}));
+    if(entry&&allowedHost(entry))host.storage.set(ENTRY_CACHE_KEY,entry);
+  } catch(e) {}
+}
+function isDiscoveryHost(value) {
+  const h=str(value).replace(/^https:\/\//i,"").toLowerCase();
+  return h==="hgdju.com"||h.endsWith(".hgdju.com")||h==="hgdja1.com"||h.endsWith(".hgdja1.com");
+}
+function originOf(value) {
+  const m=/^(https?:\/\/[^/?#]+)/i.exec(str(value));
+  return m?m[1].replace(/^http:/i,"https:"):"";
+}
+function collectPageCandidates(body,headers,candidates,seen,entries,entrySeen) {
+  const found=extractCandidates(body);
+  const location=headers&&(headers.location||headers.Location);
+  if(location)found.unshift(location);
+  for(const value of found) {
+    const origin=originOf(value);
+    if(!origin||!allowedHost(origin))continue;
+    if(isDiscoveryHost(origin)) {
+      if(!entrySeen[origin]){entrySeen[origin]=true;entries.push(origin);}
+    } else addCandidate(candidates,seen,origin);
+  }
+}
+async function fetchDiscoveryPage(address,candidates,seen,entries,entrySeen) {
+  try {
+    const r=await getText(address,address,6500,false);
+    collectPageCandidates(r.body,r.headers,candidates,seen,entries,entrySeen);
+    const finalOrigin=originOf(r.url);
+    if(finalOrigin&&isDiscoveryHost(finalOrigin)&&!entrySeen[finalOrigin]) {
+      entrySeen[finalOrigin]=true;entries.push(finalOrigin);
+    }
+    return true;
+  } catch(e) {
+    try{host.log("[黄瓜域名发现] entry="+address+" failed="+str(e&&e.message||e).slice(0,180));}catch(ignore){}
+    return false;
+  }
+}
 async function validateHost(c,requireSearch) {
   const paths=requireSearch
-    ? ["/search/video/%E4%B8%8D%E6%93%8D%E4%BB%99/"]
-    : ["/","/ai-duanju/","/aiduanju","/browse/"];
+    ? ["/search?q=%E6%93%8D%E4%BB%99"]
+    : ["/","/browse","/drama/18-1955-9f8f"];
   for(const path of paths) {
     try {
-      const p=await getText(c+path,c+"/",12000);
-      if(requireSearch ? parseSearchCardsDOM(p.body,c).length>0 : (p.body.includes("黄瓜短剧")&&(p.body.includes("/video/")||p.body.includes("/drama/"))))return true;
+      const p=await getText(c+path,c+"/",8500,false);
+      if(requireSearch
+        ? (hasDramaCards(p.body)&&parseCards(p.body,c).length>0)
+        : (p.body.includes("黄瓜短剧")&&(p.body.includes("/video/")||p.body.includes("/drama/"))))return true;
     } catch(e) {}
   }
   return false;
 }
-async function getHost(forceRefresh,requireSearch) {
-  if(!forceRefresh&&memoryHost&&Date.now()-memoryHostAt<CACHE_TTL) {
+async function getHost(forceRefresh,requireSearch,excludeHost) {
+  const excluded=originOf(excludeHost)||str(excludeHost);
+  if(!forceRefresh&&memoryHost&&memoryHost!==excluded&&Date.now()-memoryHostAt<CACHE_TTL) {
     if(!requireSearch||await validateHost(memoryHost,true))return memoryHost;
     memoryHost="";memoryHostAt=0;
   }
-  if(!forceRefresh) {
-    const saved=readCachedHost();
-    if(saved&&(!requireSearch||await validateHost(saved,true))) {
-      memoryHost=saved;memoryHostAt=Date.now();return saved;
+
+  const candidates=[],seen={},entries=[],entrySeen={};
+  let primaryReachable=false;
+  // VPN 可用时优先通过主站 homeward 刷新国内入口和线路列表。
+  try {
+    const primary=await getText(NAV_URL,NAV_URL,6500,false);
+    primaryReachable=true;
+    collectPageCandidates(primary.body,primary.headers,candidates,seen,entries,entrySeen);
+    const finalOrigin=originOf(primary.url);
+    if(finalOrigin&&isDiscoveryHost(finalOrigin)&&!entrySeen[finalOrigin]) {
+      entrySeen[finalOrigin]=true;entries.push(finalOrigin);
     }
+    host.log("[黄瓜域名发现] mode=primary-reachable source="+NAV_URL);
+  } catch(e) {
+    host.log("[黄瓜域名发现] mode=domestic-first primary-unreachable="+str(e&&e.message||e).slice(0,160));
   }
-  const candidates=[],seen={};
-  for(const address of [NAV_URL].concat(LEGACY_NAV_URLS)) {
-    try {
-      const r=await getText(address,address,15000);
-      addCandidate(candidates,seen,r.url);
-      addCandidate(candidates,seen,r.headers.location||r.headers.Location||"");
-      for(const found of extractCandidates(r.body))addCandidate(candidates,seen,found);
-    } catch(e) {}
+
+  const savedEntry=readCachedEntry();
+  if(savedEntry&&!entrySeen[savedEntry]){entrySeen[savedEntry]=true;entries.push(savedEntry);}
+  for(const address of LEGACY_NAV_URLS) {
+    const entry=originOf(address);
+    if(entry&&!entrySeen[entry]){entrySeen[entry]=true;entries.push(entry);}
   }
-  // 优先保留最近成功的线路，其次检查站点导航页发现的地址和内置候选域名。
+  for(const entry of entries)await fetchDiscoveryPage(entry+"/",candidates,seen,entries,entrySeen);
+
+  // 新发现线路优先；缓存线路用于入口暂时不可用时兜底；内置旧线路只作为最后回退。
+  for(const value of readCachedHosts())addCandidate(candidates,seen,value);
   addCandidate(candidates,seen,memoryHost);
-  addCandidate(candidates,seen,readCachedHost());
   for(const seed of SEED_HOSTS)addCandidate(candidates,seen,seed);
+
+  const usable=[];
   for(const c of candidates) {
-    if(await validateHost(c,!!requireSearch)) {
-      memoryHost=c;memoryHostAt=Date.now();writeCachedHost(c);return c;
-    }
+    if(isDiscoveryHost(c)||c===excluded)continue;
+    if(await validateHost(c,!!requireSearch))usable.push(c);
+  }
+  if(usable.length) {
+    memoryHost=usable[0];memoryHostAt=Date.now();
+    writeCachedHost(memoryHost);
+    writeCachedHosts(usable,entries[0]||savedEntry||"");
+    host.log("[黄瓜域名选择] mode="+(primaryReachable?"primary-discovery":"domestic-first")+
+      " selected="+memoryHost+" candidates="+JSON.stringify(usable.slice(0,12)));
+    return memoryHost;
   }
   fail("E_NETWORK",requireSearch
-    ? "黄瓜短剧未发现支持搜索的可用线路，请刷新最新地址后重试"
-    : "黄瓜短剧未发现可用线路。请先开启 VPN 刷新最新地址，再关闭 VPN 重试");
+    ? "黄瓜短剧未发现支持搜索的国内可用线路，请检查网络或刷新线路后重试"
+    : "黄瓜短剧未发现可用国内线路；请检查网络后重试");
+}
+async function getTextWithFallback(url,referer,timeout) {
+  try { return await getText(url,referer,timeout); }
+  catch(e) {
+    if((e&&e.code==="E_NOT_FOUND")||/HTTP 404/.test(str(e&&e.message||e)))throw e;
+    const failed=originOf(url);
+    const fresh=await getHost(true,false,failed);
+    if(!fresh||fresh===failed)throw e;
+    const m=/^https?:\/\/[^/]+(\/[^?#]*)?(\?[^#]*)?/i.exec(url);
+    const path=(m&&m[1]?m[1]:"/")+(m&&m[2]?m[2]:"");
+    const ref=originOf(referer)===failed?fresh+"/":referer;
+    host.log("[黄瓜线路切换] from="+failed+" to="+fresh+" path="+path);
+    return await getText(fresh+path,ref,timeout);
+  }
 }
 async function pageWithRefresh(url,referer,validator) {
   try {
@@ -167,7 +263,7 @@ async function pageWithRefresh(url,referer,validator) {
   }
   // 刷新线路时必须保留原请求的完整路径和查询参数，不能把 /search?q=剧名
   // 丢成 /search，否则站点可能返回首页推荐列表并被误认为搜索结果。
-  const fresh=await getHost(true);
+  const fresh=await getHost(true,false,originOf(url));
   const m=/^https?:\/\/[^/]+(\/[^?#]*)?(\?[^#]*)?/i.exec(url);
   const target=(m&&m[1]?m[1]:"/")+(m&&m[2]?m[2]:"");
   const r=await getText(fresh+target,fresh+"/");
@@ -574,7 +670,6 @@ function searchKeywordVariants(keyword) {
   if(chars.length>3)add(chars.slice(0,3).join(""));
   return out;
 }
-const SEARCH_HOST = "https://porncz.hzeqbmes.cc";
 const SEARCH_ITEM_HOST_PREFIX = "huanggua.searchItemHost.";
 
 
@@ -648,7 +743,7 @@ async function searchDramas(keyword,page=1) {
   const q=str(keyword),p=Math.max(1,Math.floor(Number(page)||1));
   if(!q)return {items:[],page:p,hasMore:false};
   // 新版主站使用 /drama/<slug> 卡片；不再把已停止访问的旧数字 ID 域名作为搜索入口。
-  const h=await getHost();
+  let h=await getHost(false,true);
   const variants=searchKeywordVariants(q);
   let lastError=null;
   for(const term of variants) {
@@ -656,21 +751,23 @@ async function searchDramas(keyword,page=1) {
       try {
         let links={},target=firstPath;
         if(p>1) {
-          const first=await getText(h+firstPath,h+"/",20000);
+          const first=await getTextWithFallback(h+firstPath,h+"/",20000);
+          h=originOf(first.url)||h;
           if(!hasDramaCards(first.body))continue;
           links=paginationLinks(first.body,h);
           const pageTargets=searchPageCandidates(firstPath,p,links);
           let found=false;
           for(const candidate of pageTargets) {
             try {
-              const check=await getText(/^https?:\/\//i.test(candidate)?candidate:h+candidate,h+"/",20000);
+              const check=await getTextWithFallback(/^https?:\/\//i.test(candidate)?candidate:h+candidate,h+"/",20000);
               if(hasDramaCards(check.body)) { target=candidate;found=true;break; }
             } catch(e) {}
           }
           if(!found)continue;
         }
         const requestUrl=/^https?:\/\//i.test(target)?target:h+target;
-        const result=await getText(requestUrl,h+"/",20000);
+        const result=await getTextWithFallback(requestUrl,h+"/",20000);
+        h=originOf(result.url)||h;
         searchDiagnostics(result.body,result,term,p,requestUrl);
         if(!hasDramaCards(result.body))continue;
         const candidates=parseCards(result.body,h);
@@ -729,10 +826,11 @@ async function getDetail(alias) {
   if(!/^[a-zA-Z0-9-]+$/.test(alias))fail("E_PARSE","黄瓜短剧剧集 ID 无效");
   const numeric=/^\d+$/.test(alias);
   // 搜索结果的数字 ID 始终来自已验证的搜索站点，不能依赖可能丢失的本地 storage 映射。
-  const h=rememberedSearchItemHost(alias)||(numeric?SEARCH_HOST:await getHost());
+  let h=rememberedSearchItemHost(alias)||await getHost();
   const route=numeric?"/video/":"/drama/";
   const url=h+route+encodeURIComponent(alias)+"/";
-  const response=await getText(url,h+"/",20000);
+  const response=await getTextWithFallback(url,h+"/",20000);
+  h=originOf(response.url)||h;
   const body=response.body;
   detailDiagnostics(body,response,alias,url);
   const h1=(H1_RE.exec(body)||[])[1]||"";
@@ -770,16 +868,20 @@ export default {
       const numeric=/^\d+$/.test(p[0]);
       if(numeric&&Number(p[1])!==1)fail("E_NOT_FOUND","该详情页只提供一个可直接播放的正片地址");
       stage="resolve host";
-      const h=rememberedSearchItemHost(p[0])||(numeric?SEARCH_HOST:await getHost());
-      const url=numeric
+      let h=rememberedSearchItemHost(p[0])||await getHost();
+      let url=numeric
         ? h+"/video/"+encodeURIComponent(p[0])+"/"
         : h+"/play/"+encodeURIComponent(p[0])+"/"+Number(p[1]);
       stage="fetch play page";
-      const body=numeric
-        ? (await getText(url,h+"/",20000)).body
-        : (rememberedSearchItemHost(p[0])
-            ? (await getText(url,url,20000)).body
-            : await pageWithRefresh(url,url,b=>!!parsePlayUrl(b)));
+      let body;
+      if(numeric||rememberedSearchItemHost(p[0])) {
+        const playResponse=await getTextWithFallback(url,numeric?h+"/":url,20000);
+        body=playResponse.body;
+        url=playResponse.url||url;
+        h=originOf(url)||h;
+      } else {
+        body=await pageWithRefresh(url,url,b=>!!parsePlayUrl(b));
+      }
       stage="parse media URL";
       const media=parsePlayUrl(body);
       if(!media)fail("E_PARSE","黄瓜短剧详情页未提取到媒体地址；请查看详情诊断日志");
