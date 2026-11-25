@@ -27,7 +27,8 @@
     "channel": "stable"
   },
   "homeFeatures": [
-    "featured"
+    "featured",
+    "categoryShelves"
   ],
   "capabilities": [
     "home",
