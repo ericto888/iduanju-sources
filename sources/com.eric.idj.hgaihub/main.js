@@ -182,6 +182,16 @@ function epochOf(text) {
   return Math.floor(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])) / 1000);
 }
 
+/** 把信息条压成 3 行放在简介开头（App 详情页直接展示 desc，不需要改主程序）。 */
+function withFacts(facts, desc) {
+  if (!facts.length) return desc;
+  const parts = [];
+  for (let i = 0; i < facts.length && parts.length < 6; i++) parts.push(facts[i].label + '：' + facts[i].value);
+  const lines = [];
+  for (let i = 0; i < parts.length; i += 2) lines.push(parts.slice(i, i + 2).join(' ｜ '));
+  return lines.join('\n') + (desc ? '\n\n' + desc : '');
+}
+
 export default {
   async home() {
     const res = await get('/');
@@ -238,7 +248,7 @@ export default {
     return {
       title: clean(data.title) || ('短剧 ' + vid),
       cover: coverFor(vid),
-      desc: clean(data.description),
+      desc: withFacts(facts, clean(data.description)),
       tags: tags,
       onlineTime: onlineTime,
       facts: facts,
