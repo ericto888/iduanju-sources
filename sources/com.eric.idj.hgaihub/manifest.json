@@ -30,6 +30,9 @@
     "url": "https://raw.githubusercontent.com/ericto888/iduanju-sources/main/sources/com.eric.idj.hgaihub/manifest.json",
     "channel": "stable"
   },
+  "homeFeatures": [
+    "featured"
+  ],
   "capabilities": [
     "home",
     "category",
