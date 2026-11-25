@@ -2,50 +2,23 @@
   "schema": 1,
   "id": "com.eric.idj.huanggua",
   "name": "黄瓜短剧",
-  "version": "1.4.5",
+  "version": "1.4.6",
   "author": {
     "name": "iDuanJu 社区移植",
     "contact": "https://github.com/ericto888/iduanju-sources"
   },
-  "description": "黄瓜短剧：VPN可用时优先从主站 homeward 更新国内线路；主站不可达时优先使用国内分发入口动态发现多域名，并统一搜索、详情、播放线路及故障切换。",
+  "description": "黄瓜短剧官方主站固定为 hgdju.com；移除非官方镜像域名、动态线路发现与跨域故障切换。",
   "type": "shortdrama",
   "adult": true,
   "minAppVersion": "1.5",
   "entry": "main.js",
   "permissions": {
     "http": [
-      "hgdju.com",
-      "hgdja1.com",
-      "hgdj1.app",
-      "*.hgdj1.app",
-      "hgdj17.com",
-      "*.hgdj17.com",
-      "hgdjb15.com",
-      "*.hgdjb15.com",
-      "*.ywwegfkd.cc",
-      "*.eyrkjyudz.cc",
-      "*.hgdju.com",
-      "*.hgdja1.com",
-      "hzeqbmes.cc",
-      "*.hzeqbmes.cc",
-      "hls.ohjzmm.cn"
+      "hgdju.com"
     ],
     "media": [
       "hgdju.com",
-      "hgdja1.com",
-      "hgdj1.app",
-      "*.hgdj1.app",
-      "hgdj17.com",
-      "*.hgdj17.com",
-      "hgdjb15.com",
-      "*.hgdjb15.com",
-      "*.ywwegfkd.cc",
-      "*.eyrkjyudz.cc",
-      "*.hgdju.com",
-      "*.hgdja1.com",
-      "hls.ohjzmm.cn",
-      "hzeqbmes.cc",
-      "*.hzeqbmes.cc"
+      "hls.ohjzmm.cn"
     ],
     "storage": true
   },
