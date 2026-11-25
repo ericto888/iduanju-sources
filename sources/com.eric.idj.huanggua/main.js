@@ -2,8 +2,8 @@
 // 官方唯一站点：hgdju.com。其他域名不属于黄瓜短剧，不参与发现、缓存或故障切换。
 const SITE_ORIGIN = "https://hgdju.com";
 const NAV_URL = SITE_ORIGIN + "/homeward";
-const CATEGORIES = [{id:"yuanchuang",name:"原创短剧"},{id:"aiduanju",name:"AI短剧"},{id:"mogai",name:"魔改"},{id:"manju",name:"漫剧"},{id:"zhenren",name:"真人"},{id:"browse",name:"推荐"}];
-const CATEGORY_IDS = ["yuanchuang","aiduanju","mogai","manju","zhenren","browse"];
+const CATEGORIES = [{id:"browse",name:"推荐"},{id:"yuanchuang",name:"原创短剧"},{id:"aiduanju",name:"AI短剧"},{id:"mogai",name:"魔改"},{id:"manju",name:"漫剧"},{id:"zhenren",name:"真人"}];
+const CATEGORY_IDS = ["browse","yuanchuang","aiduanju","mogai","manju","zhenren"];
 const CARD_SPLIT = '<article data-xpch="card-drama"';
 const ALIAS_RE = /href=["']\/drama\/([a-zA-Z0-9_-]+)["']/i;
 const IMG_TAG_RE = /<img\b[^>]*>/gi;
