@@ -3,6 +3,11 @@
 // 每一集有独立地址 /video/<id>/ep-<n>/，播放时现取，避免使用过期的签名地址。
 const ORIGIN = 'https://hgaihub.com';
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+// 站点的封面在 CDN 上是 AES 加密的，网页端由 crypto-worker.js 解密；
+// 同品牌的 hgdju.com 提供 /_img/<base64url路径>.<ext> 服务端解密代理，App 直接用该地址加载封面。
+const IMAGE_PROXY = 'https://hgdju.com/_img/';
+// 图片代理只接受去 padding 的标准 Base64。
+const PROXY_HOST_RE = /(^|\.)mmgbaa\.cn$/i;
 
 const CATEGORIES = [
   { id: 'newest', name: '最新上新' },
@@ -38,11 +43,26 @@ function absolute(url) {
   return '';
 }
 
+function base64Raw(value) {
+  return host.codec.base64Encode(value, { from: 'utf8' }).replace(/=+$/, '');
+}
+
+function imageURL(raw) {
+  const u = absolute(raw);
+  if (!u) return '';
+  const hostMatch = /^https?:\/\/([^/]+)/i.exec(u);
+  const host = hostMatch ? hostMatch[1] : '';
+  if (!PROXY_HOST_RE.test(host)) return u;
+  let ext = (u.split(/[?#]/)[0].split('.').pop() || '').toLowerCase();
+  if (!/^(jpeg|jpg|png|webp)$/.test(ext)) ext = 'jpg';
+  return IMAGE_PROXY + base64Raw(u) + '.' + ext;
+}
+
 function coverOf(img) {
   if (!img) return '';
   const raw = attrOf(img, 'data-src') || attrOf(img, 'src');
   if (!raw || /cover-placeholder/.test(raw)) return '';
-  return absolute(raw);
+  return imageURL(raw);
 }
 
 function remarksOf(node) {
@@ -219,7 +239,7 @@ export default {
     }
     return {
       title: clean(data.title) || ('短剧 ' + vid),
-      cover: absolute(data.coverSrc || data.posterSrc),
+      cover: imageURL(data.coverSrc || data.posterSrc),
       desc: clean(data.description),
       tags: tags,
       lines: [{ name: '默认线路', episodes: episodes }]

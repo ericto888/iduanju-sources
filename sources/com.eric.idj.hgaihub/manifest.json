@@ -2,12 +2,12 @@
   "schema": 1,
   "id": "com.eric.idj.hgaihub",
   "name": "黄瓜AI短剧",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": {
     "name": "iDuanJu 社区移植",
     "contact": "https://github.com/ericto888/iduanju-sources"
   },
-  "description": "黄瓜短剧 AI 站（hgaihub.com）：首页精选推荐与最新上新，黄瓜原创、AI 短剧、AI 漫剧及热门标签分类，支持搜索、详情与逐集 m3u8 播放。",
+  "description": "黄瓜短剧 AI 站（hgaihub.com）：首页精选推荐与最新上新，黄瓜原创、AI 短剧、AI 漫剧及热门标签分类，支持搜索、详情与逐集 m3u8 播放；封面经 hgdju.com 图片代理解密加载。",
   "type": "shortdrama",
   "adult": true,
   "minAppVersion": "1.5",
@@ -16,6 +16,8 @@
     "http": [
       "hgaihub.com",
       "*.hgaihub.com",
+      "hgdju.com",
+      "*.hgdju.com",
       "pic.mmgbaa.cn",
       "*.mmgbaa.cn",
       "hls.ohjzmm.cn",
@@ -24,6 +26,8 @@
     "media": [
       "hgaihub.com",
       "*.hgaihub.com",
+      "hgdju.com",
+      "*.hgdju.com",
       "pic.mmgbaa.cn",
       "*.mmgbaa.cn",
       "hls.ohjzmm.cn",
