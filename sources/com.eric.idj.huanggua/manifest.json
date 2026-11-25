@@ -2,7 +2,7 @@
   "schema": 1,
   "id": "com.eric.idj.huanggua",
   "name": "黄瓜短剧",
-  "version": "1.4.6",
+  "version": "1.4.7",
   "author": {
     "name": "iDuanJu 社区移植",
     "contact": "https://github.com/ericto888/iduanju-sources"
@@ -26,6 +26,9 @@
     "url": "https://raw.githubusercontent.com/ericto888/iduanju-sources/main/sources/com.eric.idj.huanggua/manifest.json",
     "channel": "stable"
   },
+  "homeFeatures": [
+    "featured"
+  ],
   "capabilities": [
     "home",
     "category",
