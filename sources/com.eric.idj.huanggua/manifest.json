@@ -2,12 +2,12 @@
   "schema": 1,
   "id": "com.eric.idj.huanggua",
   "name": "黄瓜短剧",
-  "version": "1.4.3",
+  "version": "1.4.4",
   "author": {
     "name": "iDuanJu 社区移植",
     "contact": "https://github.com/ericto888/iduanju-sources"
   },
-  "description": "黄瓜短剧：修复全部浏览与分类分页请求，优先使用站点确认的规范分页地址，并废弃旧分页缓存。",
+  "description": "黄瓜短剧：新增主域名 homeward 与国内入口动态多域名发现，按主站可达性选择发现策略，统一搜索、详情和播放线路并支持故障切换。",
   "type": "shortdrama",
   "adult": true,
   "minAppVersion": "1.5",
