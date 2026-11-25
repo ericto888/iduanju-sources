@@ -310,7 +310,28 @@ export default {
     const doc = docOf(res);
     let items = parseDramaCards(doc, 'section.hg-section--featured div.hg-drama-card, section.hg-section--newest div.hg-drama-card', res.base);
     if (!items.length) items = parseCategoryTiles(doc, 'section.hg-section--categories a.hg-category-item', res.base);
-    return { categories: CATEGORIES, items: items };
+
+    // The homepage markup can change independently of the catalogue page.
+    // Fall back to the verified newest channel so the host still receives
+    // real playable drama IDs and covers for the TOP5 carousel.
+    if (items.length < 5) {
+      try {
+        const latest = await fetchPage('/newest');
+        const latestDoc = docOf(latest);
+        let fallback = parseDramaCards(latestDoc, 'section.hg-list-page div.hg-card-grid.is-active div.hg-drama-card', latest.base);
+        if (!fallback.length) fallback = parseDramaCards(latestDoc, 'section.hg-list-page div.hg-card-grid div.hg-drama-card', latest.base);
+        if (!fallback.length) fallback = parseDramaCards(latestDoc, 'div.hg-drama-card', latest.base);
+        const seen = {};
+        for (const item of items) seen[item.id] = true;
+        for (const item of fallback) {
+          if (!seen[item.id]) { items.push(item); seen[item.id] = true; }
+          if (items.length >= 5) break;
+        }
+      } catch (e) {
+        host.log('首页精选回退最新频道失败：' + (e && e.message ? e.message : e));
+      }
+    }
+    return { categories: CATEGORIES, items: items.slice(0, 5) };
   },
 
   async category({ id, page }) {
