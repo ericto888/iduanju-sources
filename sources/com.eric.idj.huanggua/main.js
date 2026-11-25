@@ -668,7 +668,18 @@ async function getDetail(alias) {
   return{title,cover,desc:dm?htmlText(dm[1]):"",chapters};
 }
 export default {
-  async home(){return{categories:CATEGORIES.filter(c=>str(c.id)!==""&&str(c.name)!=="推荐")};},
+  async home(){
+    const categories=CATEGORIES.filter(c=>str(c.id)!==""&&str(c.name)!=="推荐");
+    // The home carousel is explicit home data, not an inferred category feed.
+    // Use the site's own 推荐/browse endpoint and return up to five real items.
+    try {
+      const result=await listCategory(1,"browse");
+      return {categories,items:(result.items||[]).slice(0,5)};
+    } catch(e) {
+      host.log("[首页TOP5] 推荐数据加载失败："+str(e&&e.message||e));
+      return {categories,items:[]};
+    }
+  },
   async category(args={}) {
     const input=args&&typeof args==="object"?args:{id:args};
     const page=input.page??1;
