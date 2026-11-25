@@ -192,20 +192,38 @@ async function getHost(forceRefresh,requireSearch,excludeHost) {
     memoryHost="";memoryHostAt=0;
   }
 
-  const candidates=[],seen={},entries=[],entrySeen={};
-  let primaryReachable=false;
-  // VPN 可用时优先通过主站 homeward 刷新国内入口和线路列表。
-  try {
-    const primary=await getText(NAV_URL,NAV_URL,6500,false);
-    primaryReachable=true;
-    collectPageCandidates(primary.body,primary.headers,candidates,seen,entries,entrySeen);
-    const finalOrigin=originOf(primary.url);
-    if(finalOrigin&&isDiscoveryHost(finalOrigin)&&!entrySeen[finalOrigin]) {
-      entrySeen[finalOrigin]=true;entries.push(finalOrigin);
+  // 同时探测主站和国内分发入口：主站可达时优先使用主站刚发布的线路；
+  // 主站不可达时，国内入口结果优先，不必等待主域名完整超时后才开始发现。
+  const primaryCandidates=[],primarySeen={},primaryEntries=[],primaryEntrySeen={};
+  const domesticCandidates=[],domesticSeen={},domesticEntries=[],domesticEntrySeen={};
+  const primaryTask=(async()=>{
+    try {
+      const primary=await getText(NAV_URL,NAV_URL,3000,false);
+      collectPageCandidates(primary.body,primary.headers,primaryCandidates,primarySeen,primaryEntries,primaryEntrySeen);
+      const finalOrigin=originOf(primary.url);
+      if(finalOrigin&&isDiscoveryHost(finalOrigin)&&!primaryEntrySeen[finalOrigin]) {
+        primaryEntrySeen[finalOrigin]=true;primaryEntries.push(finalOrigin);
+      }
+      host.log("[黄瓜域名发现] mode=primary-reachable source="+NAV_URL);
+      return true;
+    } catch(e) {
+      host.log("[黄瓜域名发现] mode=domestic-first primary-unreachable="+str(e&&e.message||e).slice(0,160));
+      return false;
     }
-    host.log("[黄瓜域名发现] mode=primary-reachable source="+NAV_URL);
-  } catch(e) {
-    host.log("[黄瓜域名发现] mode=domestic-first primary-unreachable="+str(e&&e.message||e).slice(0,160));
+  })();
+  const domesticTask=fetchDiscoveryPage("https://hgdja1.com/",domesticCandidates,domesticSeen,domesticEntries,domesticEntrySeen);
+  const [primaryReachable]=await Promise.all([primaryTask,domesticTask]);
+
+  const candidates=[],seen={},entries=[],entrySeen={};
+  const preferredCandidates=primaryReachable
+    ? primaryCandidates.concat(domesticCandidates)
+    : domesticCandidates.concat(primaryCandidates);
+  for(const value of preferredCandidates)addCandidate(candidates,seen,value);
+  const preferredEntries=primaryReachable
+    ? primaryEntries.concat(domesticEntries)
+    : domesticEntries.concat(primaryEntries);
+  for(const value of preferredEntries) {
+    if(!entrySeen[value]){entrySeen[value]=true;entries.push(value);}
   }
 
   const savedEntry=readCachedEntry();
@@ -214,7 +232,11 @@ async function getHost(forceRefresh,requireSearch,excludeHost) {
     const entry=originOf(address);
     if(entry&&!entrySeen[entry]){entrySeen[entry]=true;entries.push(entry);}
   }
-  for(const entry of entries)await fetchDiscoveryPage(entry+"/",candidates,seen,entries,entrySeen);
+  // 主站可能公布了新的国内分发入口；已并发探测过的 hgdja1 不重复请求。
+  for(const entry of entries) {
+    if(entry==="https://hgdja1.com")continue;
+    await fetchDiscoveryPage(entry+"/",candidates,seen,entries,entrySeen);
+  }
 
   // 新发现线路优先；缓存线路用于入口暂时不可用时兜底；内置旧线路只作为最后回退。
   for(const value of readCachedHosts())addCandidate(candidates,seen,value);
