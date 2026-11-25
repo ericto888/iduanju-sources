@@ -669,7 +669,7 @@ async function getDetail(alias) {
 }
 export default {
   async home(){
-    const categories=CATEGORIES.filter(c=>str(c.id)!==""&&str(c.name)!=="推荐");
+    const categories=CATEGORIES.filter(c=>str(c.id)!=="");
     // The home carousel is explicit home data, not an inferred category feed.
     // Use the site's own 推荐/browse endpoint and return up to five real items.
     try {
