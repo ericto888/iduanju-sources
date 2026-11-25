@@ -20,5 +20,7 @@ jobs:
         run: python3 scripts/validate_catalog.py
       - name: Syntax-check Huanggua source
         run: node --check sources/com.eric.idj.huanggua/main.js
+      - name: Syntax-check HGAIHub source
+        run: node --check sources/com.eric.idj.hgaihub/main.js
       - name: Test XVideos stream extraction
         run: node --test tests/xvideos.test.mjs

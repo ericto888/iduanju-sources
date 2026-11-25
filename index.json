@@ -33,6 +33,17 @@
       "author": "iDuanJu 社区移植"
     },
     {
+      "id": "com.eric.idj.hgaihub",
+      "name": "黄瓜AI短剧",
+      "manifest": "https://raw.githubusercontent.com/ericto888/iduanju-sources/main/sources/com.eric.idj.hgaihub/manifest.json",
+      "type": "shortdrama",
+      "adult": true,
+      "version": "1.0.0",
+      "description": "黄瓜短剧 AI 站（hgaihub.com）：首页精选推荐与最新上新，原创/AI短剧/AI漫剧及热门标签分类，支持搜索、详情与逐集 m3u8 播放。",
+      "category": "shortdrama",
+      "author": "iDuanJu 社区移植"
+    },
+    {
       "id": "com.eric.idj.xvideos",
       "name": "XVideos",
       "manifest": "https://raw.githubusercontent.com/ericto888/iduanju-sources/main/sources/com.eric.idj.xvideos/manifest.json",
