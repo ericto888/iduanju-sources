@@ -90,7 +90,36 @@ async home() {
 
 没有独立推荐流的站点无需提供 `items`，也不应为了填充首页而把第一个分类伪装成推荐。没有“最新”栏目就不要返回“最新”。
 
-## 5. 兼容要求
+## 5. 可选首页能力
+
+首页推荐轮播不是所有站源都必须具备的功能。需要展示 TOP5 的站源，在 manifest.json 中显式声明：
+
+```json
+{
+  "homeFeatures": ["featured"]
+}
+```
+
+同时，capabilities 必须包含 home，且 home() 返回 items：
+
+```javascript
+async home() {
+  return {
+    items: [],       // 首页精选条目，主程序最多取前 5 部展示轮播
+    categories: []   // 网站真实分类
+  };
+}
+```
+
+约定：
+
+- featured 表示 home().items 是站源主动提供的首页精选内容，可用于 TOP5 轮播。
+- home().items 必须是可进入详情的真实剧集条目，至少提供 id、title，并尽可能提供 cover。
+- 主程序只在 manifest 声明 homeFeatures: ["featured"] 时展示轮播；没有声明时，即使 home() 偶然返回 items，也不会擅自将其作为推荐。
+- 轮播最多展示前 5 条；不足 5 条按实际数量展示；没有有效条目则不显示。
+- 不使用固定站源 ID 或固定分类 ID 判断是否有推荐能力。recommend、browse 等 ID 只属于各站源自己的分类实现。
+- homeFeatures 是可选 UI 能力声明，不是插件函数名，不应加入 capabilities 的函数列表。
+## 6. 兼容要求
 
 - 旧插件继续按原有接口运行，不要求一次性迁移。
 - 新插件优先实现 `home()` 与 `category()`。
@@ -98,7 +127,7 @@ async home() {
 - 分类单独请求失败不应导致其他分类数据全部丢失。
 - 同一分类的分页必须保持 ID 一致，且从第 1 页开始连续递增。
 
-## 6. 接入验收清单
+## 7. 接入验收清单
 
 - [ ] `home()` 返回的栏目均真实存在。
 - [ ] 每个分类 ID 唯一、稳定，名称准确。
