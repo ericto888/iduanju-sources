@@ -3,11 +3,6 @@
 // 每一集有独立地址 /video/<id>/ep-<n>/，播放时现取，避免使用过期的签名地址。
 const ORIGIN = 'https://hgaihub.com';
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
-// 站点的封面在 CDN 上是 AES 加密的，网页端由 crypto-worker.js 解密；
-// 同品牌的 hgdju.com 提供 /_img/<base64url路径>.<ext> 服务端解密代理，App 直接用该地址加载封面。
-const IMAGE_PROXY = 'https://hgdju.com/_img/';
-// 图片代理只接受去 padding 的标准 Base64。
-const PROXY_HOST_RE = /(^|\.)mmgbaa\.cn$/i;
 
 const CATEGORIES = [
   { id: 'newest', name: '最新上新' },
@@ -43,26 +38,9 @@ function absolute(url) {
   return '';
 }
 
-function base64Raw(value) {
-  return host.codec.base64Encode(value, { from: 'utf8' }).replace(/=+$/, '');
-}
-
-function imageURL(raw) {
-  const u = absolute(raw);
-  if (!u) return '';
-  const hostMatch = /^https?:\/\/([^/]+)/i.exec(u);
-  const host = hostMatch ? hostMatch[1] : '';
-  if (!PROXY_HOST_RE.test(host)) return u;
-  let ext = (u.split(/[?#]/)[0].split('.').pop() || '').toLowerCase();
-  if (!/^(jpeg|jpg|png|webp)$/.test(ext)) ext = 'jpg';
-  return IMAGE_PROXY + base64Raw(u) + '.' + ext;
-}
-
-function coverOf(img) {
-  if (!img) return '';
-  const raw = attrOf(img, 'data-src') || attrOf(img, 'src');
-  if (!raw || /cover-placeholder/.test(raw)) return '';
-  return imageURL(raw);
+// 站点的封面在 CDN 上是加密的；share 接口返回服务端解密后的普通图片，且不依赖 hgdju 是否有该剧。
+function coverFor(id) {
+  return ORIGIN + '/share/video/' + id + '/cover';
 }
 
 function remarksOf(node) {
@@ -111,9 +89,7 @@ function parseDramaCards(doc, selector) {
     const title = clean(attrOf(img, 'alt') || textOf(card.selectFirst('.hg-drama-card__title')) || textOf(card.selectFirst('h3')));
     if (!title) continue;
     seen[m[1]] = 1;
-    const item = { id: m[1], title: title };
-    const cover = coverOf(img);
-    if (cover) item.cover = cover;
+    const item = { id: m[1], title: title, cover: coverFor(m[1]) };
     const remarks = remarksOf(card.selectFirst('.hg-drama-card__episode'));
     if (remarks) item.remarks = remarks;
     items.push(item);
@@ -134,10 +110,7 @@ function parseCategoryTiles(doc, selector) {
     const title = clean(attrOf(img, 'alt') || textOf(a.selectFirst('.hg-category-item__title')));
     if (!title) continue;
     seen[m[1]] = 1;
-    const item = { id: m[1], title: title };
-    const cover = coverOf(img);
-    if (cover) item.cover = cover;
-    items.push(item);
+    items.push({ id: m[1], title: title, cover: coverFor(m[1]) });
   }
   return items;
 }
@@ -189,6 +162,26 @@ function episodeTotal(data, body) {
   return Math.max(1, Math.min(9999, total));
 }
 
+/** 详情页「上线日期 / 出品 / 更新状态 / 播放次数 / 单集片长 / 题材类型」信息条。 */
+function parseFacts(doc) {
+  const out = [];
+  const nodes = doc.select('.hg-web-play__fact');
+  for (let i = 0; i < nodes.length && out.length < 8; i++) {
+    const label = textOf(nodes[i].selectFirst('b'));
+    // 出品一栏的 span 里还带着「+关注」按钮文案，去掉。
+    const value = textOf(nodes[i].selectFirst('span')).replace(/\s*\+?\s*关注\s*$/, '').trim();
+    if (!label || !value) continue;
+    out.push({ label: label, value: value });
+  }
+  return out;
+}
+
+function epochOf(text) {
+  const m = /(\d{4})-(\d{2})-(\d{2})/.exec(text || '');
+  if (!m) return 0;
+  return Math.floor(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])) / 1000);
+}
+
 export default {
   async home() {
     const res = await get('/');
@@ -237,11 +230,18 @@ export default {
         if (t) tags.push(t);
       }
     }
+    const facts = parseFacts(docOf(res));
+    let onlineTime = 0;
+    for (let i = 0; i < facts.length; i++) {
+      if (facts[i].label === '上线日期') onlineTime = epochOf(facts[i].value);
+    }
     return {
       title: clean(data.title) || ('短剧 ' + vid),
-      cover: imageURL(data.coverSrc || data.posterSrc),
+      cover: coverFor(vid),
       desc: clean(data.description),
       tags: tags,
+      onlineTime: onlineTime,
+      facts: facts,
       lines: [{ name: '默认线路', episodes: episodes }]
     };
   },
