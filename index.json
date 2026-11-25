@@ -27,8 +27,8 @@
       "manifest": "https://raw.githubusercontent.com/ericto888/iduanju-sources/main/sources/com.eric.idj.huanggua/manifest.json",
       "type": "shortdrama",
       "adult": true,
-      "version": "1.4.5",
-      "description": "黄瓜短剧：VPN可用时优先从主站 homeward 更新国内线路；主站不可达时优先使用国内分发入口动态发现多域名，并统一搜索、详情、播放线路及故障切换。",
+      "version": "1.4.6",
+      "description": "黄瓜短剧官方主站固定为 hgdju.com；移除非官方镜像域名与自动跨域切换。",
       "category": "shortdrama",
       "author": "iDuanJu 社区移植"
     },
