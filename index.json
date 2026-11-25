@@ -27,8 +27,8 @@
       "manifest": "https://raw.githubusercontent.com/ericto888/iduanju-sources/main/sources/com.eric.idj.huanggua/manifest.json",
       "type": "shortdrama",
       "adult": true,
-      "version": "1.4.7",
-      "description": "黄瓜短剧官方主站固定为 hgdju.com；移除非官方镜像域名与自动跨域切换。",
+      "version": "1.4.8",
+      "description": "黄瓜短剧官方主站固定为 hgdju.com；恢复官网真实推荐分类入口，保留首页 TOP5 轮播。",
       "category": "shortdrama",
       "author": "iDuanJu 社区移植"
     },
