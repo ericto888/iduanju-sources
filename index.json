@@ -27,7 +27,7 @@
       "manifest": "https://raw.githubusercontent.com/ericto888/iduanju-sources/main/sources/com.eric.idj.huanggua/manifest.json",
       "type": "shortdrama",
       "adult": true,
-      "version": "1.4.10",
+      "version": "1.4.11",
       "description": "黄瓜短剧：推荐分类置顶，保留官网真实分类、首页 TOP5 轮播及播放功能。",
       "category": "shortdrama",
       "author": "iDuanJu 社区移植"
