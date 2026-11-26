@@ -346,6 +346,10 @@ export default {
     // 频道页有多个隐藏的 tab 网格，只取当前激活的那一个。
     let items = parseDramaCards(doc, 'section.hg-list-page div.hg-card-grid.is-active div.hg-drama-card', res.base);
     if (!items.length) items = parseDramaCards(doc, 'section.hg-list-page div.hg-card-grid div.hg-drama-card', res.base);
+    // /newest 的列表容器可能与标签频道不同；前两级选择器未命中时，
+    // 回退到站点通用卡片节点，避免请求成功但因外层容器变化而返回空列表。
+    if (!items.length) items = parseDramaCards(doc, 'div.hg-drama-card', res.base);
+    if (!items.length) host.log('分类列表解析为空：id=' + clean(id) + ' path=' + path + ' page=' + p);
     return { items: items, page: p, hasMore: items.length > 0 && hasNext(res.body) };
   },
 
