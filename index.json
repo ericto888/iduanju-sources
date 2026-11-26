@@ -38,8 +38,8 @@
       "manifest": "https://raw.githubusercontent.com/ericto888/iduanju-sources/main/sources/com.eric.idj.hgaihub/manifest.json",
       "type": "shortdrama",
       "adult": true,
-      "version": "1.2.7",
-      "description": "黄瓜短剧 AI 站（hgaihub.com）：首页 TOP5 精选轮播 + 顶部分类切换（最新上新、黄瓜原创、AI短剧、AI漫剧、都市/熟女/乱伦/绿帽/逆袭）；支持搜索、详情和逐集播放。",
+      "version": "1.2.8",
+      "description": "黄瓜短剧 AI 站（hgaihub.com）：首页 TOP5 精选轮播及分类横向选片栏，包含最新上新、黄瓜原创、AI短剧、AI漫剧；支持搜索、详情和逐集播放。",
       "category": "shortdrama",
       "author": "iDuanJu 社区移植"
     },

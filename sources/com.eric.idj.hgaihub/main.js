@@ -20,14 +20,7 @@ const CATEGORIES = [
   { id: 'newest', name: '最新上新' },
   { id: 'yuanchuang', name: '黄瓜原创' },
   { id: 'duanju', name: 'AI短剧' },
-  { id: 'manju', name: 'AI漫剧' },
-  // 分类 id 不使用冒号：部分宿主版本会把带冒号的 id 当作路由/状态分隔符，
-  // 导致从标签分类开始“全部”按钮无法进入该分类（旧缓存 tag:dushi 仍会被兼容）。
-  { id: 'tag-dushi', name: '都市' },
-  { id: 'tag-shunv', name: '熟女' },
-  { id: 'tag-luanlun', name: '乱伦' },
-  { id: 'tag-lvmao', name: '绿帽' },
-  { id: 'tag-nixi', name: '逆袭' }
+  { id: 'manju', name: 'AI漫剧' }
 ];
 
 function clean(value) {
