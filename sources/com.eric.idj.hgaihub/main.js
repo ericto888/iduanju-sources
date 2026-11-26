@@ -184,7 +184,13 @@ function docOf(res) {
 }
 
 function hasNext(body) {
-  return /<link[^>]*\brel=["']next["']/i.test(body || '');
+  const html = String(body || '');
+  // 兼容 rel=next、分页 next 按钮及站点输出的页码链接。
+  return /<link\b[^>]*\brel=["']next["']/i.test(html)
+    || /<a\b(?=[^>]*\brel=["']next["'])[^>]*>/i.test(html)
+    || /<a\b(?=[^>]*\bclass=["'][^"']*(?:next|下一页)[^"']*["'])[^>]*>/i.test(html)
+    || /<a\b[^>]*\bhref=["'][^"']*(?:\/page\/2\/?|[?&]page=2)[^"']*["'][^>]*>/i.test(html)
+    || /<a\b[^>]*>\s*(?:下一页|下页|Next\s*»|»|›)\s*<\/a>/i.test(html);
 }
 
 /** 解析剧集卡片（首页精选/最新、列表页、搜索结果）。 */
@@ -231,9 +237,8 @@ function parseCategoryTiles(doc, selector, base) {
 function categoryPath(id, page) {
   const key = clean(id).toLowerCase();
   const suffix = page > 1 ? String(page) + '/' : '';
-  // 宿主的「全部」入口使用 all；映射到站点全量最新片库。
-  // 与 newest 共用真实分页路由，避免未知分类 ID 返回空列表。
-  if (key === 'all' || key === '全部') return page > 1 ? '/newest/' + page + '/' : '/newest';
+  // 宿主若传入「全部」，默认进入黄瓜 AI 短剧的都市热门标签完整列表。
+  if (key === 'all' || key === '全部') return page > 1 ? '/tag/dushi/page/' + page + '/' : '/tag/dushi/';
   if (key === 'newest') return page > 1 ? '/newest/' + page + '/' : '/newest';
   if (key === 'yuanchuang') return '/ai-yuanchuang/' + suffix;
   if (key === 'duanju') return '/ai-duanju/' + suffix;
