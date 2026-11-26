@@ -312,7 +312,7 @@ function categoryInputValue(value) {
   return value;
 }
 function normalizeCategoryName(value) {
-  return str(value).toLowerCase().replace(/[\\s_-]+/g,"");
+  return str(value).toLowerCase().replace(/[\s_-]+/g,"");
 }
 function resolveLineCategory(value) {
   const input=str(categoryInputValue(value));
@@ -333,7 +333,7 @@ function resolveLineCategory(value) {
 }
 function extractTagCategories(body) {
   const found={},html=String(body||"");
-  const re=/<a\\b([^>]*\\bhref\\s*=\\s*["']([^"']+)["'][^>]*)>([\\s\\S]*?)<\\/a>/gi;
+  const re=/<a\b([^>]*\bhref\s*=\s*["']([^"']+)["'][^>]*)>([\s\S]*?)<\/a>/gi;
   let m;
   while((m=re.exec(html))!==null) {
     const href=str(m[2]).replace(/&amp;/g,"&");
