@@ -293,7 +293,7 @@ function parsePlayUrl(body) {
   const mp4=/(?:https?:)?\/\/[^"'\s<>]+\.mp4(?:\?[^"'\s<>]*)?/i.exec(html);
   return mp4?unescapePlayUrl(mp4[0]):"";
 }
-const CATEGORY_CACHE_PREFIX = "huanggua.category.v3."; // 分页路由修复后废弃旧版错误分页缓存
+const CATEGORY_CACHE_PREFIX = "huanggua.category.v4."; // 分类请求结构升级：区分内容线 line 与题材标签 tag
 const CATEGORY_CACHE_TTL = 10 * 60 * 1000;
 const CATEGORY_PATHS = {
   yuanchuang: ["/browse?line=yuanchuang"],
@@ -304,32 +304,68 @@ const CATEGORY_PATHS = {
   browse: ["/browse"]
 };
 
-// 不同宿主版本传入分类参数的字段可能不同：优先使用规范 id，
-// 同时兼容 categoryId/category/key/name 及直接传入分类对象的情况。
-function resolveCategoryId(value) {
-  let raw=value;
-  if(raw&&typeof raw==="object"&&!Array.isArray(raw)) {
-    raw=raw.id??raw.categoryId??raw.category_id??raw.key??raw.value??raw.category??raw.name??raw.title??"";
+// 宿主可能传入分类名称、规范 ID 或分类对象。内容线沿用 line，题材标签按官网真实 tag ID 请求。
+function categoryInputValue(value) {
+  if(value&&typeof value==="object"&&!Array.isArray(value)) {
+    return value.id??value.categoryId??value.category_id??value.tagId??value.tag_id??value.key??value.value??value.category??value.name??value.title??value.slug??"";
   }
-  const input=str(raw);
-  // 宿主的“推荐”入口可能以空 ID 调用 category；黄瓜的推荐列表对应 /browse。
-  // 仅将空值映射为 browse，未知的非空分类仍保持严格校验。
+  return value;
+}
+function normalizeCategoryName(value) {
+  return str(value).toLowerCase().replace(/[\\s_-]+/g,"");
+}
+function resolveLineCategory(value) {
+  const input=str(categoryInputValue(value));
   if(!input)return "browse";
-  const normalized=input.toLowerCase().replace(/[\\s_-]+/g,"");
+  const normalized=normalizeCategoryName(input);
   const aliases={
     yuanchuang:["yuanchuang","原创短剧","原创"],
     aiduanju:["aiduanju","ai短剧","ai"],
-    mogai:["mogai","魔改"],
-    manju:["manju","漫剧"],
-    zhenren:["zhenren","真人","真人短剧"],
+    mogai:["mogai","魔改","ai魔改"],
+    manju:["manju","漫剧","ai漫剧"],
+    zhenren:["zhenren","真人","真人短剧","ai真人短剧"],
     browse:["browse","recommend","recommendation","推荐","全部","全部短剧","全部分类"]
   };
   for(const id of Object.keys(aliases)) {
-    if(aliases[id].some(alias=>alias.toLowerCase().replace(/[\\s_-]+/g,"")===normalized))return id;
+    if(aliases[id].some(alias=>normalizeCategoryName(alias)===normalized))return id;
   }
   return "";
 }
-
+function extractTagCategories(body) {
+  const found={},html=String(body||"");
+  const re=/<a\\b([^>]*\\bhref\\s*=\\s*["']([^"']+)["'][^>]*)>([\\s\\S]*?)<\\/a>/gi;
+  let m;
+  while((m=re.exec(html))!==null) {
+    const href=str(m[2]).replace(/&amp;/g,"&");
+    const tagMatch=/(?:^|[?&])tag=([^&#]+)/i.exec(href);
+    if(!tagMatch)continue;
+    let tagId=tagMatch[1];
+    try { tagId=decodeURIComponent(tagId); } catch(e) {}
+    if(!/^tag-[a-zA-Z0-9_-]+$/.test(tagId))continue;
+    const name=htmlText(m[3]);
+    if(name&&!found[normalizeCategoryName(name)])found[normalizeCategoryName(name)]=tagId;
+  }
+  return found;
+}
+async function resolveCategorySelection(value,h) {
+  const raw=categoryInputValue(value);
+  const input=str(raw);
+  const line=resolveLineCategory(value);
+  if(line)return {type:"line",id:line,key:line,path:(CATEGORY_PATHS[line]||["/browse"])[0]};
+  if(!input)return {type:"line",id:"browse",key:"browse",path:"/browse"};
+  if(/^tag-[a-zA-Z0-9_-]+$/.test(input)) {
+    return {type:"tag",id:input,key:"tag."+input,path:"/browse?tag="+encodeURIComponent(input)};
+  }
+  // 题材分类的 ID 由官网提供，不从中文名称推测；从官网分类页的真实链接反查。
+  const page=await getText(h+"/browse",h+"/");
+  const tags=extractTagCategories(page.body);
+  const tagId=tags[normalizeCategoryName(input)];
+  if(!tagId) {
+    try { host.log("[黄瓜分类参数] tag not found name="+input+" available="+JSON.stringify(Object.keys(tags))); } catch(e) {}
+    fail("E_PARSE","黄瓜短剧未能识别题材分类："+input+"（未从官网分类页找到对应 tag ID）");
+  }
+  return {type:"tag",id:tagId,key:"tag."+tagId,path:"/browse?tag="+encodeURIComponent(tagId)};
+}
 function cacheHostKey(h) {
   return str(h).replace(/^https?:\/\//i,"").replace(/[^a-zA-Z0-9.-]/g,"_").toLowerCase();
 }
@@ -388,11 +424,12 @@ function searchResultPage(body) {
   return m?Number(m[1])||0:0;
 }
 function pagePaths(category,page,links) {
-  const id=str(category),bases=CATEGORY_PATHS[id]||[];
-  if(page===1)return bases.slice();
-  // 已确认的站点分页路由：全部浏览不带 line，具体分类必须保留 line 参数。
-  // 先请求确定的规范地址，避免首页分页锚点缺失/过期时把翻页请求卡在第一页。
-  const suffix=id==="browse"?"":"?line="+encodeURIComponent(id);
+  const selection=category||{type:"line",id:"browse",path:"/browse"};
+  if(page===1)return [selection.path];
+  // 官网分页必须保留原筛选维度：内容线使用 line，题材标签使用 tag。
+  const suffix=selection.type==="tag"
+    ? "?tag="+encodeURIComponent(selection.id)
+    : (selection.id==="browse"?"":"?line="+encodeURIComponent(selection.id));
   const canonical="/browse/page-"+page+suffix;
   const candidates=[canonical];
   if(links&&links[page]&&!candidates.includes(links[page]))candidates.push(links[page]);
@@ -400,10 +437,10 @@ function pagePaths(category,page,links) {
   return candidates;
 }
 async function fetchCategoryPage(h,category,page) {
-  const bases=CATEGORY_PATHS[str(category)]||[];
+  const bases=[category.path];
   let links={};
   if(page>1) {
-    // 仅作备用：从第一页提取站点自带分页链接；不再依赖该请求成功才能翻页。
+    // 仅作备用：从对应分类第一页提取官网分页链接；翻页规范地址仍保留原筛选参数。
     for(const base of bases) {
       try {
         const first=await getText(h+base,h+"/");
@@ -436,21 +473,21 @@ async function fetchCategoryPage(h,category,page) {
 }
 async function listCategory(page,categoryValue) {
   const p=Math.max(1,Math.floor(Number(page)||1));
-  const category=resolveCategoryId(categoryValue);
-  if(!category) {
-    try { host.log("[黄瓜分类参数] invalid="+JSON.stringify(categoryValue)); } catch(e) {}
-    fail("E_PARSE","黄瓜短剧分类参数无效（收到："+str(categoryValue&&typeof categoryValue==="object"?(categoryValue.id??categoryValue.categoryId??categoryValue.name??JSON.stringify(categoryValue)):categoryValue||"空值")+"）");
-  }
-  const h=await getHost(),cached=readCategoryCache(h,category,p);
+  const h=await getHost();
+  const category=await resolveCategorySelection(categoryValue,h);
+  const cacheKey=category.key;
+  const cached=readCategoryCache(h,cacheKey,p);
   if(cached&&Date.now()-cached.savedAt<CATEGORY_CACHE_TTL) {
     return {items:cached.items,hasMore:cached.hasMore};
   }
   try {
+    host.log("[黄瓜分类请求] type="+category.type+" id="+category.id+" page="+p+" path="+category.path);
     const result=await fetchCategoryPage(h,category,p);
-    writeCategoryCache(h,category,p,result);
+    writeCategoryCache(h,cacheKey,p,result);
     return result;
   } catch(e) {
     if(cached&&cached.items.length)return {items:cached.items,hasMore:cached.hasMore};
+    host.log("[黄瓜分类失败] type="+category.type+" id="+category.id+" page="+p+" error="+str(e&&e.message||e));
     throw e;
   }
 }
