@@ -21,11 +21,13 @@ const CATEGORIES = [
   { id: 'yuanchuang', name: '黄瓜原创' },
   { id: 'duanju', name: 'AI短剧' },
   { id: 'manju', name: 'AI漫剧' },
-  { id: 'tag:dushi', name: '都市' },
-  { id: 'tag:shunv', name: '熟女' },
-  { id: 'tag:luanlun', name: '乱伦' },
-  { id: 'tag:lvmao', name: '绿帽' },
-  { id: 'tag:nixi', name: '逆袭' }
+  // 分类 id 不使用冒号：部分宿主版本会把带冒号的 id 当作路由/状态分隔符，
+  // 导致从标签分类开始“全部”按钮无法进入该分类（旧缓存 tag:dushi 仍会被兼容）。
+  { id: 'tag-dushi', name: '都市' },
+  { id: 'tag-shunv', name: '熟女' },
+  { id: 'tag-luanlun', name: '乱伦' },
+  { id: 'tag-lvmao', name: '绿帽' },
+  { id: 'tag-nixi', name: '逆袭' }
 ];
 
 function clean(value) {
@@ -234,8 +236,21 @@ function parseCategoryTiles(doc, selector, base) {
   return items;
 }
 
+/** 兼容新 id（tag-dushi）、旧缓存（tag:dushi / tag_dushi）和误传的中文分类名。 */
+function normalizeCategoryId(id) {
+  let key = clean(id);
+  if (!key) return '';
+  try { key = clean(decodeURIComponent(key)); } catch (e) {}
+  for (let i = 0; i < CATEGORIES.length; i++) {
+    if (CATEGORIES[i].id === key || CATEGORIES[i].name === key) return CATEGORIES[i].id;
+  }
+  const legacy = /^tag[:%3A_-]+([a-z0-9-]+)$/i.exec(key);
+  if (legacy) return 'tag-' + legacy[1].toLowerCase();
+  return key;
+}
+
 function categoryPath(id, page) {
-  const key = clean(id).toLowerCase();
+  const key = normalizeCategoryId(id);
   const suffix = page > 1 ? String(page) + '/' : '';
   // 宿主若传入「全部」，默认进入黄瓜 AI 短剧的都市热门标签完整列表。
   if (key === 'all' || key === '全部') return page > 1 ? '/tag/dushi/page/' + page + '/' : '/tag/dushi/';
@@ -243,7 +258,7 @@ function categoryPath(id, page) {
   if (key === 'yuanchuang') return '/ai-yuanchuang/' + suffix;
   if (key === 'duanju') return '/ai-duanju/' + suffix;
   if (key === 'manju') return '/ai-manju/' + suffix;
-  if (key.indexOf('tag:') === 0) {
+  if (key.indexOf('tag-') === 0) {
     const slug = key.slice(4);
     if (!/^[a-z0-9-]+$/.test(slug)) return '';
     return page > 1 ? '/tag/' + slug + '/page/' + page + '/' : '/tag/' + slug + '/';
@@ -345,7 +360,10 @@ export default {
   async category({ id, page }) {
     const p = Math.max(1, Number(page) || 1);
     const path = categoryPath(id, p);
-    if (!path) return { items: [], page: p, hasMore: false };
+    if (!path) {
+      host.log('未知分类 id：' + clean(id));
+      return { items: [], page: p, hasMore: false };
+    }
     const res = await fetchPage(path);
     const doc = docOf(res);
     // 频道页有多个隐藏的 tab 网格，只取当前激活的那一个。
