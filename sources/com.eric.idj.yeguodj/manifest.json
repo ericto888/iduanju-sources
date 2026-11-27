@@ -2,12 +2,12 @@
   "schema": 1,
   "id": "com.eric.idj.yeguodj",
   "name": "野果短剧",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "author": {
     "name": "Eric",
     "contact": "https://github.com/ericto888/iduanju-sources"
   },
-  "description": "野果短剧：封面改用 _payload.json 解析，并通过 coverTransform 交给宿主原生 AES 解密（需新版 App）；旧版 Android 自动回退到内置 AI 封面解密。",
+  "description": "野果短剧：官方接口取分集与播放，封面通过 coverTransform 交给宿主原生 AES 解密（需新版 App）；新增 idj1 danmaku 能力，按需加载官方弹幕。",
   "type": "shortdrama",
   "adult": true,
   "minAppVersion": "1.5",
@@ -58,6 +58,7 @@
     "category",
     "search",
     "detail",
-    "play"
+    "play",
+    "danmaku"
   ]
 }

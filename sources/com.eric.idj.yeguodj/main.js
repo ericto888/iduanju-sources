@@ -478,6 +478,18 @@ function setCover(item, cover) {
 function yeguoEpisodePage(id, number) {
   return ORIGIN + '/drama/video/' + id + (number > 1 ? '/ep-' + number : '') + '/';
 }
+// 弹幕：官方 /api/playlet/danmakuList，mode 0 滚动 / 1 顶部 / 2 底部。
+// 通过 idj1 的 danmaku 能力返回结构化条目，由 App 原生渲染。
+function danmakuMode(v) {
+  const s = clean(v).toLowerCase();
+  if (s === '1' || s === 'top') return 'top';
+  if (s === '2' || s === 'bottom') return 'bottom';
+  return 'scroll';
+}
+function danmakuColor(v) {
+  const s = clean(v).toUpperCase();
+  return /^#[0-9A-F]{6}$/.test(s) ? s : '#FFFFFF';
+}
 
 export default {
   async home() {
@@ -569,6 +581,25 @@ export default {
     };
     setCover(result, yeguoCover(row.cover, ORIGIN));
     return result;
+  },
+
+  async danmaku({ episodeKey, seriesId } = {}) {
+    const ep = clean(episodeKey), sid = clean(seriesId);
+    if (!/^\d+$/.test(ep) || !/^\d+$/.test(sid)) return { items: [] };
+    const data = await yeguoApiCall('/api/playlet/danmakuList', {
+      playlet_id: sid, video_id: sid, episode_id: ep
+    });
+    const rows = Array.isArray(data.list) ? data.list : [];
+    const items = [];
+    for (let i = 0; i < rows.length && items.length < 3000; i++) {
+      const row = rows[i] || {};
+      const time = Number(row.time);
+      const text = clean(row.text).replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 200);
+      if (!Number.isFinite(time) || time < 0 || !text) continue;
+      items.push({ time: time, text: text, color: danmakuColor(row.color), mode: danmakuMode(row.mode) });
+    }
+    items.sort(function (a, b) { return a.time - b.time; });
+    return { items: items };
   },
 
   async play({ episodeId, id }) {
