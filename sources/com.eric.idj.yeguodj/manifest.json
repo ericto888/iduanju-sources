@@ -2,12 +2,12 @@
   "schema": 1,
   "id": "com.eric.idj.yeguodj",
   "name": "野果短剧",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "author": {
     "name": "Eric",
     "contact": "https://github.com/ericto888/iduanju-sources"
   },
-  "description": "野果短剧：修复搜索结果剧集 ID 正则错误，保留封面 Referer 与播放 CDN 兼容处理。",
+  "description": "野果短剧：统一封面地址解析，兼容相对路径、对象/数组封面及多种懒加载图片属性。",
   "type": "shortdrama",
   "adult": true,
   "minAppVersion": "1.5",
