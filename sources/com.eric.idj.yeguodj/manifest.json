@@ -2,12 +2,12 @@
   "schema": 1,
   "id": "com.eric.idj.yeguodj",
   "name": "野果短剧",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "author": {
     "name": "Eric",
     "contact": "https://github.com/ericto888/iduanju-sources"
   },
-  "description": "野果短剧：修复分类页 HTML 懒加载占位图覆盖正式封面的问题；保留 pic.nsxxlj.cn 图片授权、播放 CDN HTTPS 适配、原生 AES 封面解密及官方弹幕。",
+  "description": "野果短剧：修复野果封面 AES 参数与主程序不一致的问题，统一为 AES-128-CBC NoPadding；保留分类封面修复、图片域名授权、播放 CDN HTTPS 适配及官方弹幕。",
   "type": "shortdrama",
   "adult": true,
   "minAppVersion": "1.5",
