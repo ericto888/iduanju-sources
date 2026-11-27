@@ -414,7 +414,12 @@ export default {
     const streams = [], seen = {};
     ['video_url', 'video_url_h265'].forEach(function (field) {
       const raw = clean(row[field]);
-      const media = absolute(raw, referer);
+      let media = absolute(raw, referer);
+      // This official playback CDN currently returns an HTTP URL. Keep the
+      // app's HTTPS-only media policy: upgrade only this exact known host.
+      if (/^http:\/\/op\.micgqv\.cn(?=[:/])/i.test(media)) {
+        media = media.replace(/^http:\/\//i, 'https://');
+      }
       if (!media || !/^https:\/\//i.test(media) || seen[media]) return;
       seen[media] = true;
       streams.push({
