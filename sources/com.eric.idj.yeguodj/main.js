@@ -134,10 +134,12 @@ async function fetchCoverMap(body, base) {
     return coverMapFromPayload(res.body);
   } catch (_) { return {}; }
 }
+// _payload.json 保存的是站点正式剧集封面；列表 HTML 中的 img.src
+// 可能只是横版/低清懒加载占位图，因此只要 payload 有对应封面就应覆盖 HTML 候选图。
 function applyCovers(items, map, base) {
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
-    if (item.cover || !map[item.id]) continue;
+    if (!map || !map[item.id]) continue;
     const cover = yeguoCover(map[item.id], base || ORIGIN);
     if (!cover) continue;
     setCover(item, cover);
@@ -496,9 +498,7 @@ export default {
     const res = await requestUrl(ORIGIN + '/');
     const doc = parseDoc(res.body, res.url);
     const items = pageItems(res.body, res.url).slice(0, 5);
-    if (items.some(function (x) { return !x.cover; })) {
-      applyCovers(items, await fetchCoverMap(res.body, res.url), res.url);
-    }
+    applyCovers(items, await fetchCoverMap(res.body, res.url), res.url);
     const categories = CATEGORIES.filter(function (c) {
       return !!doc.selectFirst('a[href*="/drama/' + c.id + '/"]');
     });
