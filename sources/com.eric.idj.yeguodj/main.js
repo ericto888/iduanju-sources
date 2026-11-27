@@ -50,6 +50,15 @@ function parseDoc(body, url) { return host.html.parse(body, url); }
 function text(node) { return node ? clean(node.text()) : ''; }
 function attr(node, key) { return node ? clean(node.attr(key)) : ''; }
 
+// 诊断只记录计数、域名和布尔状态，不记录完整图片 URL、查询参数或 payload 正文。
+function coverDiag(message) {
+  try { host.log('[封面诊断] ' + clean(message).slice(0, 420)); } catch (_) {}
+}
+function coverHost(url) {
+  const m = /^https?:\\/\\/([^/?#]+)/i.exec(String(url || ''));
+  return m ? m[1].toLowerCase() : 'none';
+}
+
 function imageCandidateFromNode(node, base) {
   if (!node) return '';
   const keys = ['data-src', 'data-original', 'data-lazy-src', 'data-original-src',
@@ -93,6 +102,9 @@ function pageItems(body, base) {
     setCover(item, cover);
     out.push(item);
   }
+  let htmlCoverCount = 0;
+  for (let i = 0; i < out.length; i++) if (out[i].cover) htmlCoverCount++;
+  coverDiag('HTML解析 items=' + out.length + '，已有候选封面=' + htmlCoverCount);
   return out;
 }
 // 列表页的封面不在 HTML 里（img 只有懒加载占位图），真实封面在 Nuxt 的
@@ -107,10 +119,10 @@ function payloadRef(table, value) {
 }
 function coverMapFromPayload(text) {
   const body = String(text || '').trim();
-  if (!body || body.charAt(0) !== '[') return {};
+  if (!body || body.charAt(0) !== '[') { coverDiag('payload格式异常：不是JSON数组，长度=' + body.length); return {}; }
   let table;
-  try { table = JSON.parse(body); } catch (_) { return {}; }
-  if (!Array.isArray(table) || table.length > 200000) return {};
+  try { table = JSON.parse(body); } catch (_) { coverDiag('payload JSON解析失败，长度=' + body.length); return {}; }
+  if (!Array.isArray(table) || table.length > 200000) { coverDiag('payload数组无效或超限，类型=' + (Array.isArray(table) ? 'array' : typeof table) + '，长度=' + (table && table.length || 0)); return {}; }
   const map = {};
   for (let i = 0; i < table.length; i++) {
     const row = table[i];
@@ -120,6 +132,7 @@ function coverMapFromPayload(text) {
     if (!cover) continue;
     if (typeof id === 'number' || /^\d+$/.test(String(id == null ? '' : id))) map[String(id)] = cover;
   }
+  coverDiag('payload解析成功：table=' + table.length + '，有效封面映射=' + Object.keys(map).length);
   return map;
 }
 function payloadUrlFromPage(body, base) {
@@ -129,21 +142,34 @@ function payloadUrlFromPage(body, base) {
   return cleanBase.replace(/\/?$/, '/') + '_payload.json';
 }
 async function fetchCoverMap(body, base) {
+  const payloadUrl = payloadUrlFromPage(body, base);
+  coverDiag('请求payload：host=' + coverHost(payloadUrl));
   try {
-    const res = await requestUrl(payloadUrlFromPage(body, base), base);
+    const res = await requestUrl(payloadUrl, base);
+    coverDiag('payload HTTP成功：status=2xx，host=' + coverHost(res.url || payloadUrl) + '，bodyLength=' + res.body.length);
     return coverMapFromPayload(res.body);
-  } catch (_) { return {}; }
+  } catch (err) {
+    const msg = clean(err && (err.message || err)).replace(/https?:\\/\\/[^\\s]+/g, '[url]').slice(0, 120);
+    coverDiag('payload请求失败：' + (msg || 'unknown error'));
+    return {};
+  }
 }
 // _payload.json 保存的是站点正式剧集封面；列表 HTML 中的 img.src
 // 可能只是横版/低清懒加载占位图，因此只要 payload 有对应封面就应覆盖 HTML 候选图。
 function applyCovers(items, map, base) {
+  let matched = 0, biacea = 0, transformed = 0;
+  const hosts = {};
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
     if (!map || !map[item.id]) continue;
     const cover = yeguoCover(map[item.id], base || ORIGIN);
     if (!cover) continue;
     setCover(item, cover);
+    matched++;
+    const h = coverHost(cover); hosts[h] = true;
+    if (isBiaceaCover(cover)) { biacea++; if (item.coverTransform && item.coverTransform.type === 'aes') transformed++; }
   }
+  coverDiag('封面匹配：items=' + items.length + '，payloadMap=' + Object.keys(map || {}).length + '，matched=' + matched + '，biacea=' + biacea + '，AESTransform=' + transformed + '，hosts=' + Object.keys(hosts).slice(0, 4).join(','));
 }
 function hasNext(body, page) {  const html = String(body || '');
   if (/rel=["']next["']|下一页|下页|Next/i.test(html)) return true;
@@ -496,6 +522,7 @@ export default {
     const res = await requestUrl(ORIGIN + '/');
     const doc = parseDoc(res.body, res.url);
     const items = pageItems(res.body, res.url).slice(0, 5);
+    coverDiag('首页封面流程开始');
     applyCovers(items, await fetchCoverMap(res.body, res.url), res.url);
     const categories = CATEGORIES.filter(function (c) {
       return !!doc.selectFirst('a[href*="/drama/' + c.id + '/"]');
@@ -509,6 +536,7 @@ export default {
     if (!path) throw host.error('E_NOT_FOUND', '未知的野果短剧分类');
     const res = await requestUrl(ORIGIN + path);
     const items = pageItems(res.body, res.url);
+    coverDiag('分类封面流程开始：page=' + p);
     // HTML img.src 可能始终有占位图，不能以“已有 cover”判断正式封面是否存在。
     // 每页都读取 Nuxt payload，并让正式封面覆盖 HTML 懒加载占位图。
     applyCovers(items, await fetchCoverMap(res.body, res.url), res.url);
@@ -537,6 +565,7 @@ export default {
       seen[id] = true;
       const item = { id: id, title: title };
       setCover(item, yeguoCover(row.cover, ORIGIN));
+      if (items.length < 3) coverDiag('搜索封面：host=' + coverHost(item.cover) + '，AESTransform=' + !!(item.coverTransform && item.coverTransform.type === 'aes'));
       const count = Number(row.episode_count || row.episodes || row.total_serial);
       if (Number.isFinite(count) && count > 0) item.remarks = count + '集';
       items.push(item);
@@ -578,6 +607,7 @@ export default {
       lines: [{ name: '默认线路', episodes: normalized.map(function (ep) { return { id: ep.id, name: ep.name }; }) }]
     };
     setCover(result, yeguoCover(row.cover, ORIGIN));
+    coverDiag('详情封面：id=' + vid + '，host=' + coverHost(result.cover) + '，AESTransform=' + !!(result.coverTransform && result.coverTransform.type === 'aes'));
     return result;
   },
 
