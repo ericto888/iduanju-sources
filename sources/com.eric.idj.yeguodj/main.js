@@ -18,7 +18,7 @@ function absolute(v, base) {
   if (!s) return '';
   if (s.indexOf('//') === 0) return 'https:' + s;
   if (/^https?:\/\//i.test(s)) return s;
-  if (s.charAt(0) === '/') return (base || ORIGIN) + s;
+  if (s.charAt(0) === '/') { const root = /^https?:\/\/[^/]+/i.exec(base || ORIGIN); return (root ? root[0] : ORIGIN) + s; }
   return '';
 }
 function requestUrl(url, referer, attempt) {
@@ -187,18 +187,29 @@ async function discoverYeguoAccess() {
   const entryRes = await requestUrl(entry, home.url);
   if (!apiBase) apiBase = yeguoApiBaseFromScript(entryRes.body, origin);
   let config = yeguoPublicConfig(entryRes.body);
-  const imports = [];
-  const importRe = /import\s*\{([^{};]+)\}\s*from\s*["'\x60]([^"'\x60]+)["'\x60]/g;
+  const priorityImports = [], fallbackImports = [];
+  const addImport = function (reference, priority) {
+    const u = host.url.resolve({ base: entry, rel: reference });
+    const target = priority ? priorityImports : fallbackImports;
+    if (u.indexOf(origin + '/') === 0 && /\/_nuxt\/.*\.js(?:\?|$)/.test(u) && target.indexOf(u) < 0 && priorityImports.indexOf(u) < 0 && fallbackImports.indexOf(u) < 0 && u !== entry) target.push(u);
+  };
+  // 兼容 Vite/Rollup 的具名导入、默认导入和动态 import。
+  const importRe = /import\s*\{([^{};]+)\}\s*from\s*["'\x60]([^"'\x60]+)["'\x60]|import\s+[^("' \x60][^;]{0,500}?\sfrom\s*["'\x60]([^"'\x60]+)["'\x60]|import\s*\(\s*["'\x60]([^"'\x60]+)["'\x60]\s*\)/g;
   let im;
   while ((im = importRe.exec(entryRes.body)) !== null) {
-    const u = host.url.resolve({ base: entry, rel: im[2] });
-    if (u.indexOf(origin + '/') === 0 && /\/_nuxt\/.*\.js(?:\?|$)/.test(u) && imports.indexOf(u) < 0) imports.push(u);
+    const ref = im[2] || im[3] || im[4];
+    if (ref) addImport(ref, !!(im[1] && im[1].indexOf(',') >= 0));
   }
-  // 配置常位于 entry 的静态依赖中；最多读取 20 个同源 Nuxt 模块。
-  for (let i = 0; i < imports.length && i < 20 && (!config || !apiBase); i++) {
-    const chunk = await requestUrl(imports[i], home.url);
-    if (!apiBase) apiBase = yeguoApiBaseFromScript(chunk.body, origin);
-    if (!config) config = yeguoPublicConfig(chunk.body);
+  // 部分构建把异步 chunk 名称放在 preload 映射数组中，不使用静态 import。
+  const chunkRe = /["'\x60](\/_nuxt\/[^"'\x60]+\.js(?:\?[^"'\x60]*)?)["'\x60]/g;
+  while ((im = chunkRe.exec(entryRes.body)) !== null) addImport(im[1], false);
+  const orderedImports = priorityImports.concat(fallbackImports);
+  for (let i = 0; i < orderedImports.length && i < 20 && (!config || !apiBase); i++) {
+    try {
+      const chunk = await requestUrl(orderedImports[i], home.url);
+      if (!apiBase) apiBase = yeguoApiBaseFromScript(chunk.body, origin);
+      if (!config) config = yeguoPublicConfig(chunk.body);
+    } catch (_) {}
   }
   if (!config) throw host.error('E_PARSE', '野果接口加密配置未找到，站点前端可能已更新');
   if (!apiBase) apiBase = origin + '/api.php';
