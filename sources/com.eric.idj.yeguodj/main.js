@@ -59,9 +59,9 @@ function imageCandidateFromNode(node) {
     if (value) return value;
   }
   const srcset = attr(node, 'data-srcset') || attr(node, 'srcset');
-  if (srcset) return srcset.split(',')[0].trim().split(/\\s+/)[0];
+  if (srcset) return srcset.split(',')[0].trim().split(/\s+/)[0];
   const style = attr(node, 'style');
-  const css = /url\\(\\s*['"]?([^'")]+)['"]?\\s*\\)/i.exec(style);
+  const css = /url\(\s*['"]?([^'")]+)['"]?\s*\)/i.exec(style);
   return css ? css[1] : '';
 }
 function pageItems(body, base) {
@@ -71,7 +71,7 @@ function pageItems(body, base) {
   for (let i = 0; i < links.length; i++) {
     const a = links[i];
     const href = attr(a, 'href');
-    const m = /\\/drama\\/detail\\/(\\d+)\\/?/.exec(href);
+    const m = /\/drama\/detail\/(\d+)\/?/.exec(href);
     if (!m || seen[m[1]]) continue;
     const img = a.selectFirst('img');
     const source = a.selectFirst('picture source') || a.selectFirst('source');
@@ -356,17 +356,17 @@ function yeguoCover(value, base, depth) {
     }
     return '';
   }
-  let raw = clean(value).replace(/&amp;/gi, '&').replace(/\\\\\\//g, '/');
+  let raw = clean(value).replace(/&amp;/gi, '&').replace(/\\\//g, '/');
   if (!raw || /^data:/i.test(raw) || /^blob:/i.test(raw)) return '';
-  const css = /^url\\(\\s*['"]?(.+?)['"]?\\s*\\)$/i.exec(raw);
+  const css = /^url\(\s*['"]?(.+?)['"]?\s*\)$/i.exec(raw);
   if (css) raw = clean(css[1]);
-  if (raw.indexOf(',') >= 0 && !/^https?:\\/\\//i.test(raw)) {
-    raw = raw.split(',')[0].trim().split(/\\s+/)[0];
+  if (raw.indexOf(',') >= 0 && !/^https?:\/\//i.test(raw)) {
+    raw = raw.split(',')[0].trim().split(/\s+/)[0];
   }
   if (raw.indexOf('//') === 0) raw = 'https:' + raw;
-  if (!/^https?:\\/\\//i.test(raw)) {
-    const b = String(base || ORIGIN).replace(/\\/+$/, '');
-    const root = /^(https?:\\/\\/[^/]+)/i.exec(b);
+  if (!/^https?:\/\//i.test(raw)) {
+    const b = String(base || ORIGIN).replace(/\/+$/, '');
+    const root = /^(https?:\/\/[^/]+)/i.exec(b);
     if (!root) return '';
     if (raw.charAt(0) === '/') {
       raw = root[1] + raw;
@@ -376,8 +376,8 @@ function yeguoCover(value, base, depth) {
       raw = root[1] + directory + raw;
     }
   }
-  const match = /^(https?):\\/\\/([^/?#]+)([^?#]*)(\\?[^#]*)?(#.*)?$/i.exec(raw);
-  if (!match || /[\\s<>"]/i.test(match[2]) || match[2].indexOf('@') >= 0) return '';
+  const match = /^(https?):\/\/([^/?#]+)([^?#]*)(\?[^#]*)?(#.*)?$/i.exec(raw);
+  if (!match || /[\s<>"]/i.test(match[2]) || match[2].indexOf('@') >= 0) return '';
   const parts = [];
   const path = match[3] || '/';
   path.split('/').forEach(function (part) {
