@@ -500,6 +500,8 @@ function isAESCover(url) {
 function setCover(item, cover) {
   const u = clean(cover);
   if (!u) return;
+  // 野果返回的是竖版海报；显式标记，避免插件站点默认按长视频横版封面布局。
+  item.orientation = 'portrait';
   // 图片 URL 保持原样，避免旧版 Android 解密标记污染原始 URL。
   item.cover = u;
   if (isAESCover(u)) {
