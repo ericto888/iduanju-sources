@@ -202,7 +202,7 @@ async function discoverYeguoAccess() {
   }
   if (!config) throw host.error('E_PARSE', '野果接口加密配置未找到，站点前端可能已更新');
   if (!apiBase) apiBase = origin + '/api.php';
-  if (apiBase.indexOf('https://') !== 0 || apiBase.indexOf(origin) !== 0) throw host.error('E_PERMISSION', '野果接口地址不在已授权站点内');
+  if (!/^https:\/\/(?:[a-z0-9-]+\.)?yeguodj\.com(?::443)?(?:\/|$)/i.test(apiBase)) throw host.error('E_PERMISSION', '野果接口地址不在已授权站点内');
   const access = {
     base: apiBase, site: origin, key: config.key, iv: config.iv, signKey: config.signKey,
     identifier: host.crypto.random({ n: 16 }), loadedAt: Date.now()
@@ -222,7 +222,7 @@ async function yeguoDecodeResponse(body, access) {
       if (typeof v !== 'string' && typeof v !== 'number' && typeof v !== 'boolean') throw host.error('E_PARSE', '野果响应签名字段格式无效');
       pieces.push(k + '=' + (k === 'data' ? String(v).replace(/ /g, '+') : String(v)));
     }
-    const digest = host.crypto.hash({ alg: 'sha256', data: pieces.join('&') + access.signKey.value, in: 'utf8', out: 'hex' });
+    const digest = host.crypto.hash({ alg: 'sha256', data: pieces.join('&') + access.signKey.value, in: access.signKey.encoding, out: 'hex' });
     const expected = host.crypto.hash({ alg: 'md5', data: digest, in: 'utf8', out: 'hex' });
     if (expected.toLowerCase() !== String(envelope.sign).toLowerCase()) throw host.error('E_PARSE', '野果接口响应签名校验失败');
   }
@@ -365,7 +365,7 @@ export default {
     ['video_url', 'video_url_h265'].forEach(function (field) {
       const raw = clean(row[field]);
       const media = absolute(raw, referer);
-      if (!media || !/^https:\/\//i.test(media) || !/\.(m3u8|mp4)(?:[?#]|$)/i.test(media) || seen[media]) return;
+      if (!media || !/^https:\/\//i.test(media) || seen[media]) return;
       seen[media] = true;
       streams.push({
         name: clean(row.resolution) || (field === 'video_url_h265' ? 'H.265' : '默认线路'),
