@@ -2,12 +2,12 @@
   "schema": 1,
   "id": "com.eric.idj.yeguodj",
   "name": "野果短剧",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "author": {
     "name": "Eric",
     "contact": "https://github.com/ericto888/iduanju-sources"
   },
-  "description": "野果短剧：列表与首页封面改用 _payload.json 解析，并把封面域名加入 http 权限，兼容旧版宿主仅校验 http 白名单的情况。",
+  "description": "野果短剧：封面改用 _payload.json 解析并交给宿主内置的 AI 封面解密（Android 生效）；封面域名加入 http/media 权限。",
   "type": "shortdrama",
   "adult": true,
   "minAppVersion": "1.5",

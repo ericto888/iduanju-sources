@@ -90,10 +90,7 @@ function pageItems(body, base) {
     const cover = imageCandidateFromNode(img, base) || imageCandidateFromNode(source, base) ||
       imageCandidateFromNode(lazyNode, base) || imageCandidateFromNode(a, base);
     const item = { id: m[1], title: title };
-    if (cover) {
-      item.cover = cover;
-      item.coverHeaders = { Referer: ORIGIN + '/' };
-    }
+    setCover(item, cover);
     out.push(item);
   }
   return out;
@@ -143,8 +140,7 @@ function applyCovers(items, map, base) {
     if (item.cover || !map[item.id]) continue;
     const cover = yeguoCover(map[item.id], base || ORIGIN);
     if (!cover) continue;
-    item.cover = cover;
-    item.coverHeaders = { Referer: ORIGIN + '/' };
+    setCover(item, cover);
   }
 }
 function hasNext(body, page) {  const html = String(body || '');
@@ -445,6 +441,30 @@ function yeguoCover(value, base, depth) {
   return match[1].toLowerCase() + '://' + match[2] + '/' + parts.join('/') +
     (match[4] || '') + (match[5] || '');
 }
+// 野果封面（pic.biacea.cn）整个响应体是 AES-128-CBC 加密的，key/iv 与 App 内置的
+// 「黄果 AI 封面」完全相同。Android 宿主在插件条目没有 coverHeaders 时会把原始 https
+// 地址直接交给 Coil，而 Coil 的封面拦截器会解密任何包含 "drleao." 的地址；因此给加密
+// 封面加一个标记参数，Android 端就能原生解密出图（图片服务器会忽略该参数，实测字节不变）。
+// 注意：iOS 宿主会把封面统一包成 idjimg:// 且不解密，这条路径在宿主更新前仍无法出图。
+const COVER_CRYPTO_MARK = 'idj=drleao.';
+function isBiaceaCover(url) {
+  const m = /^https?:\/\/([^/?#]+)/i.exec(String(url || ''));
+  const host = m ? m[1].toLowerCase() : '';
+  return /(^|\.)biacea\.cn$/.test(host);
+}
+function appCover(url) {
+  const u = clean(url);
+  if (!u || !isBiaceaCover(u)) return u;
+  if (u.indexOf(COVER_CRYPTO_MARK) >= 0) return u;
+  return u + (u.indexOf('?') >= 0 ? '&' : '?') + COVER_CRYPTO_MARK;
+}
+function setCover(item, cover) {
+  const u = appCover(cover);
+  if (!u) return;
+  item.cover = u;
+  // 带解密标记的封面必须不带 coverHeaders，Android 宿主才会保留原始地址交给 Coil 解密。
+  if (!isBiaceaCover(u)) item.coverHeaders = { Referer: ORIGIN + '/' };
+}
 function yeguoEpisodePage(id, number) {
   return ORIGIN + '/drama/video/' + id + (number > 1 ? '/ep-' + number : '') + '/';
 }
@@ -496,11 +516,7 @@ export default {
       if (!/^\d+$/.test(id) || !title || seen[id]) continue;
       seen[id] = true;
       const item = { id: id, title: title };
-      const cover = yeguoCover(row.cover, ORIGIN);
-      if (cover) {
-        item.cover = cover;
-        item.coverHeaders = { Referer: ORIGIN + '/' };
-      }
+      setCover(item, yeguoCover(row.cover, ORIGIN));
       const count = Number(row.episode_count || row.episodes || row.total_serial);
       if (Number.isFinite(count) && count > 0) item.remarks = count + '集';
       items.push(item);
@@ -541,11 +557,7 @@ export default {
       desc: clean(row.description),
       lines: [{ name: '默认线路', episodes: normalized.map(function (ep) { return { id: ep.id, name: ep.name }; }) }]
     };
-    const cover = yeguoCover(row.cover, ORIGIN);
-    if (cover) {
-      result.cover = cover;
-      result.coverHeaders = { Referer: ORIGIN + '/' };
-    }
+    setCover(result, yeguoCover(row.cover, ORIGIN));
     return result;
   },
 
