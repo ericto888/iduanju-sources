@@ -2,12 +2,12 @@
   "schema": 1,
   "id": "com.eric.idj.yeguodj",
   "name": "野果短剧",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "author": {
     "name": "Eric",
     "contact": "https://github.com/ericto888/iduanju-sources"
   },
-  "description": "野果短剧：优先使用 _payload.json 中的正式剧集海报，HTML 图片仅作备用；保留原生 AES 封面解密及官方弹幕。",
+  "description": "野果短剧：新增 pic.nsxxlj.cn 封面域名授权，并适配 op.orwebn.cn 播放 CDN 的 HTTPS 地址；保留原生 AES 封面解密及官方弹幕。",
   "type": "shortdrama",
   "adult": true,
   "minAppVersion": "1.5",
@@ -25,7 +25,8 @@
       "ygdj29.com",
       "*.ygdj29.com",
       "pic.biacea.cn",
-      "*.biacea.cn"
+      "*.biacea.cn",
+      "pic.nsxxlj.cn"
     ],
     "media": [
       "yeguodj.com",
@@ -41,7 +42,9 @@
       "api1.ldlmkzcq.cc",
       "*.ldlmkzcq.cc",
       "pic.biacea.cn",
-      "op.micgqv.cn"
+      "op.micgqv.cn",
+      "pic.nsxxlj.cn",
+      "op.orwebn.cn"
     ],
     "storage": true
   },
