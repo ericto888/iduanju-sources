@@ -60,8 +60,8 @@
       "manifest": "https://raw.githubusercontent.com/ericto888/iduanju-sources/main/sources/com.eric.idj.yeguodj/manifest.json",
       "type": "shortdrama",
       "adult": true,
-      "version": "0.2.8",
-      "description": "野果短剧：增强封面地址解析，兼容相对路径、嵌套懒加载、srcset、占位图及对象/数组封面。",
+      "version": "0.2.9",
+      "description": "野果短剧：列表与首页封面改用站点 _payload.json 解析，修复分类和首页不显示封面；搜索/详情封面保持接口解析。",
       "category": "shortdrama",
       "author": "Eric"
     }

@@ -98,8 +98,56 @@ function pageItems(body, base) {
   }
   return out;
 }
-function hasNext(body, page) {
-  const html = String(body || '');
+// 列表页的封面不在 HTML 里（img 只有懒加载占位图），真实封面在 Nuxt 的
+// _payload.json 中，通过 devalue 的索引表引用。这里解析出 video_id -> cover。
+function payloadRef(table, value) {
+  let v = value;
+  for (let i = 0; i < 6; i++) {
+    if (typeof v !== 'number' || !Number.isInteger(v) || v < 0 || v >= table.length) break;
+    v = table[v];
+  }
+  return v;
+}
+function coverMapFromPayload(text) {
+  const body = String(text || '').trim();
+  if (!body || body.charAt(0) !== '[') return {};
+  let table;
+  try { table = JSON.parse(body); } catch (_) { return {}; }
+  if (!Array.isArray(table) || table.length > 200000) return {};
+  const map = {};
+  for (let i = 0; i < table.length; i++) {
+    const row = table[i];
+    if (!row || typeof row !== 'object' || Array.isArray(row)) continue;
+    const id = payloadRef(table, row.video_id);
+    const cover = yeguoCover(payloadRef(table, row.cover), ORIGIN);
+    if (!cover) continue;
+    if (typeof id === 'number' || /^\d+$/.test(String(id == null ? '' : id))) map[String(id)] = cover;
+  }
+  return map;
+}
+function payloadUrlFromPage(body, base) {
+  const m = /href=["']([^"']*_payload\.json[^"']*)["']/i.exec(String(body || ''));
+  if (m) return absolute(m[1], base);
+  const cleanBase = String(base || ORIGIN).split('?')[0];
+  return cleanBase.replace(/\/?$/, '/') + '_payload.json';
+}
+async function fetchCoverMap(body, base) {
+  try {
+    const res = await requestUrl(payloadUrlFromPage(body, base), base);
+    return coverMapFromPayload(res.body);
+  } catch (_) { return {}; }
+}
+function applyCovers(items, map, base) {
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    if (item.cover || !map[item.id]) continue;
+    const cover = yeguoCover(map[item.id], base || ORIGIN);
+    if (!cover) continue;
+    item.cover = cover;
+    item.coverHeaders = { Referer: ORIGIN + '/' };
+  }
+}
+function hasNext(body, page) {  const html = String(body || '');
   if (/rel=["']next["']|下一页|下页|Next/i.test(html)) return true;
   return new RegExp('/page/' + (page + 1) + '/').test(html);
 }
@@ -406,6 +454,9 @@ export default {
     const res = await requestUrl(ORIGIN + '/');
     const doc = parseDoc(res.body, res.url);
     const items = pageItems(res.body, res.url).slice(0, 5);
+    if (items.some(function (x) { return !x.cover; })) {
+      applyCovers(items, await fetchCoverMap(res.body, res.url), res.url);
+    }
     const categories = CATEGORIES.filter(function (c) {
       return !!doc.selectFirst('a[href*="/drama/' + c.id + '/"]');
     });
@@ -418,6 +469,9 @@ export default {
     if (!path) throw host.error('E_NOT_FOUND', '未知的野果短剧分类');
     const res = await requestUrl(ORIGIN + path);
     const items = pageItems(res.body, res.url);
+    if (items.some(function (x) { return !x.cover; })) {
+      applyCovers(items, await fetchCoverMap(res.body, res.url), res.url);
+    }
     return { items: items, page: p, hasMore: items.length > 0 && hasNext(res.body, p) };
   },
 
