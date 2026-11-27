@@ -27,8 +27,8 @@
       "manifest": "https://raw.githubusercontent.com/ericto888/iduanju-sources/main/sources/com.eric.idj.huanggua/manifest.json",
       "type": "shortdrama",
       "adult": true,
-      "version": "1.4.11",
-      "description": "黄瓜短剧：推荐分类置顶，保留官网真实分类、首页 TOP5 轮播及播放功能。",
+      "version": "1.4.12",
+      "description": "黄瓜短剧：保留官网分类、首页 TOP5 轮播及播放功能，修正竖版海报显示比例。",
       "category": "shortdrama",
       "author": "Eric"
     },
@@ -38,8 +38,8 @@
       "manifest": "https://raw.githubusercontent.com/ericto888/iduanju-sources/main/sources/com.eric.idj.hgaihub/manifest.json",
       "type": "shortdrama",
       "adult": true,
-      "version": "1.2.8",
-      "description": "黄瓜短剧 AI 站（hgaihub.com）：首页 TOP5 精选轮播及分类横向选片栏，包含最新上新、黄瓜原创、AI短剧、AI漫剧；支持搜索、详情和逐集播放。",
+      "version": "1.2.9",
+      "description": "黄瓜短剧 AI 站：TOP5 精选、分类横向选片、搜索及逐集播放，修正竖版海报显示比例。",
       "category": "shortdrama",
       "author": "Eric"
     },
