@@ -190,9 +190,9 @@ async function discoverYeguoAccess() {
   const priorityImports = [], fallbackImports = [];
   const addImport = function (reference, priority) {
     const ref = clean(reference);
-    if (!ref || !/\\.m?js(?:[?#]|$)/i.test(ref)) return;
+    if (!ref || !/\.m?js(?:[?#]|$)/i.test(ref)) return;
     let u = '';
-    if (/^https?:\\/\\//i.test(ref)) {
+    if (/^https?:\/\//i.test(ref)) {
       u = ref;
     } else if (ref.indexOf('//') === 0) {
       u = 'https:' + ref;
@@ -214,7 +214,7 @@ async function discoverYeguoAccess() {
       const suffix = /([?#].*)$/.exec(ref);
       if (suffix) u += suffix[1];
     }
-    if (u.indexOf(origin + '/_nuxt/') !== 0 || !/\\.m?js(?:[?#]|$)/i.test(u)) return;
+    if (u.indexOf(origin + '/_nuxt/') !== 0 || !/\.m?js(?:[?#]|$)/i.test(u)) return;
     if (u === entry || priorityImports.indexOf(u) >= 0 || fallbackImports.indexOf(u) >= 0) return;
     (priority ? priorityImports : fallbackImports).push(u);
   };
@@ -226,15 +226,15 @@ async function discoverYeguoAccess() {
   }
   // Match named imports (same ordering as the native GuoApp provider), bare
   // side-effect imports, default imports, and dynamic import() chunks.
-  const namedImportRe = /import\\s*\\{([^{};]{1,2400})\\}\\s*from\\s*["'\\x60]([^"'\\x60]+)["'\\x60]/g;
+  const namedImportRe = /import\s*\{([^{};]{1,2400})\}\s*from\s*["'\x60]([^"'\x60]+)["'\x60]/g;
   let im;
   while ((im = namedImportRe.exec(entryRes.body)) !== null) {
     addImport(im[2], im[1].indexOf(',') >= 0);
   }
-  const importPathRe = /(?:\\bfrom\\s*|\\bimport\\s*(?:\\(\\s*)?)["'\\x60]([^"'\\x60]+\\.m?js(?:[?#][^"'\\x60]*)?)["'\\x60]\\s*\\)?/g;
+  const importPathRe = /(?:\bfrom\s*|\bimport\s*(?:\(\s*)?)["'\x60]([^"'\x60]+\.m?js(?:[?#][^"'\x60]*)?)["'\x60]\s*\)?/g;
   while ((im = importPathRe.exec(entryRes.body)) !== null) addImport(im[1], false);
   // Nuxt/Vite preload maps may store chunk paths as plain string literals.
-  const chunkRe = /["'\\x60]((?:\\.\\.?\\/|\\/_nuxt\\/)[^"'\\x60]+\\.m?js(?:[?#][^"'\\x60]*)?)["'\\x60]/g;
+  const chunkRe = /["'\x60]((?:\.\.?\/|\/_nuxt\/)[^"'\x60]+\.m?js(?:[?#][^"'\x60]*)?)["'\x60]/g;
   while ((im = chunkRe.exec(entryRes.body)) !== null) addImport(im[1], false);
   const orderedImports = priorityImports.concat(fallbackImports);
   let scannedModules = 0;
