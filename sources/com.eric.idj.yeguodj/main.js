@@ -21,7 +21,8 @@ function absolute(v, base) {
   if (s.charAt(0) === '/') return (base || ORIGIN) + s;
   return '';
 }
-function requestUrl(url, referer) {
+function requestUrl(url, referer, attempt) {
+  const retry = Number(attempt) || 0;
   return host.http.request({
     url: url,
     headers: {
@@ -29,13 +30,20 @@ function requestUrl(url, referer) {
       'Referer': referer || ORIGIN + '/',
       'Accept-Language': 'zh-CN,zh;q=0.9'
     },
-    timeout: 15000
+    timeout: 20000
   }).then(function (res) {
     if (!res || res.status < 200 || res.status >= 300) {
       throw host.error(res && res.status === 404 ? 'E_NOT_FOUND' : 'E_HTTP',
         '野果短剧请求失败：HTTP ' + (res ? res.status : 0));
     }
     return { body: String(res.body || ''), url: res.url || url };
+  }).catch(function (err) {
+    const message = clean(err && (err.message || err));
+    const networkFailure = /无法连接服务器|网络错误|network|timeout|timed out|连接失败/i.test(message);
+    if (networkFailure && retry < 1) {
+      return requestUrl(url, referer, retry + 1);
+    }
+    throw err;
   });
 }
 function parseDoc(body, url) { return host.html.parse(body, url); }
