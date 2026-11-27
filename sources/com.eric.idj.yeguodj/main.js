@@ -12,12 +12,12 @@ const CATEGORIES = [
   { id: 'rec-pmv-variety', name: 'PMV综艺合集' }
 ];
 
-function clean(v) { return String(v == null ? '' : v).replace(/\\s+/g, ' ').trim(); }
+function clean(v) { return String(v == null ? '' : v).replace(/\s+/g, ' ').trim(); }
 function absolute(v, base) {
-  let s = clean(v).replace(/&amp;/g, '&').replace(/\\\\\\//g, '/');
+  let s = clean(v).replace(/&amp;/g, '&').replace(/\\\//g, '/');
   if (!s) return '';
   if (s.indexOf('//') === 0) return 'https:' + s;
-  if (/^https?:\\/\\//i.test(s)) return s;
+  if (/^https?:\/\//i.test(s)) return s;
   if (s.charAt(0) === '/') return (base || ORIGIN) + s;
   return '';
 }
@@ -49,7 +49,7 @@ function pageItems(body, base) {
   for (let i = 0; i < links.length; i++) {
     const a = links[i];
     const href = attr(a, 'href');
-    const m = /\\/drama\\/detail\\/(\\d+)\\/?/.exec(href);
+    const m = /\/drama\/detail\/(\d+)\/?/.exec(href);
     if (!m || seen[m[1]]) continue;
     const img = a.selectFirst('img');
     const title = clean(attr(img, 'alt') || attr(a, 'title') || text(a));
@@ -65,8 +65,7 @@ function pageItems(body, base) {
 function hasNext(body, page) {
   const html = String(body || '');
   if (/rel=["']next["']|下一页|下页|Next/i.test(html)) return true;
-  const re = new RegExp('/page/' + (page + 1) + '/');
-  return re.test(html);
+  return new RegExp('/page/' + (page + 1) + '/').test(html);
 }
 function categoryPath(id, page) {
   let key = clean(id);
@@ -77,24 +76,24 @@ function categoryPath(id, page) {
   return '/drama/' + key + (page > 1 ? '/page/' + page + '/' : '/');
 }
 function episodeIdFromHref(href) {
-  const m = /\\/drama\\/video\\/(\\d+)\\/?/.exec(String(href || ''));
+  const m = /\/drama\/video\/(\d+)\/?/.exec(String(href || ''));
   return m ? m[1] : '';
 }
 function mediaFromHtml(html) {
-  const source = String(html || '').replace(/\\\\\\//g, '/').replace(/&amp;/g, '&');
+  const source = String(html || '').replace(/\\\//g, '/').replace(/&amp;/g, '&');
   const patterns = [
     /<source[^>]+src=["']([^"']+)["']/ig,
     /<video[^>]+src=["']([^"']+)["']/ig,
-    /(?:url|src|play_url|playUrl|video_url|videoUrl)\\s*[:=]\\s*["'](https?:\\/\\/[^"'\\s]+)["']/ig
+    /(?:url|src|play_url|playUrl|video_url|videoUrl)\s*[:=]\s*["'](https?:\/\/[^"'\s]+)["']/ig
   ];
   for (let p = 0; p < patterns.length; p++) {
     let m;
     while ((m = patterns[p].exec(source)) !== null) {
       const u = absolute(m[1], ORIGIN);
-      if (/\\.(m3u8|mp4)(?:[?#]|$)/i.test(u)) return u;
+      if (/\.(m3u8|mp4)(?:[?#]|$)/i.test(u)) return u;
     }
   }
-  const direct = /https?:\\/\\/[^"'\\s<>]+\\.(?:m3u8|mp4)(?:\\?[^"'\\s<>]*)?/i.exec(source);
+  const direct = /https?:\/\/[^"'\s<>]+\.(?:m3u8|mp4)(?:\?[^"'\s<>]*)?/i.exec(source);
   return direct ? direct[0].replace(/&amp;/g, '&') : '';
 }
 function iframeFromHtml(html, base) {
@@ -111,8 +110,9 @@ export default {
     const res = await requestUrl(ORIGIN + '/');
     const doc = parseDoc(res.body, res.url);
     const items = pageItems(res.body, res.url).slice(0, 5);
-    // 首页真实栏目来自网站的“查看更多”入口；不伪造“最新”等不存在的栏目。
-    const categories = CATEGORIES.filter(function (c) { return !!doc.selectFirst('a[href*="/drama/' + c.id + '/"]'); });
+    const categories = CATEGORIES.filter(function (c) {
+      return !!doc.selectFirst('a[href*="/drama/' + c.id + '/"]');
+    });
     return { categories: categories.length ? categories : CATEGORIES, items: items };
   },
 
@@ -149,7 +149,7 @@ export default {
 
   async detail({ id }) {
     const vid = clean(id);
-    if (!/^\\d+$/.test(vid)) throw host.error('E_NOT_FOUND', '无效的野果剧集 ID');
+    if (!/^\d+$/.test(vid)) throw host.error('E_NOT_FOUND', '无效的野果剧集 ID');
     const res = await requestUrl(ORIGIN + '/drama/detail/' + vid + '/');
     const doc = parseDoc(res.body, res.url);
     const title = titleFromDoc(doc, '野果短剧 ' + vid);
@@ -172,7 +172,7 @@ export default {
 
   async play({ episodeId }) {
     const ep = clean(episodeId);
-    if (!/^\\d+$/.test(ep)) throw host.error('E_PARSE', '无效的野果剧集播放 ID');
+    if (!/^\d+$/.test(ep)) throw host.error('E_PARSE', '无效的野果剧集播放 ID');
     const url = ORIGIN + '/drama/video/' + ep + '/';
     const res = await requestUrl(url, ORIGIN + '/');
     let media = mediaFromHtml(res.body);
@@ -184,6 +184,6 @@ export default {
       }
     }
     if (!media) throw host.error('E_PARSE', '播放页未提取到 m3u8/MP4 地址；请检查站点播放器是否已改版');
-    return { streams: [{ name: '默认线路', url: media, format: /\\.m3u8(?:[?#]|$)/i.test(media) ? 'hls' : 'mp4', headers: { Referer: res.url } }] };
+    return { streams: [{ name: '默认线路', url: media, format: /\.m3u8(?:[?#]|$)/i.test(media) ? 'hls' : 'mp4', headers: { Referer: res.url } }] };
   }
 };
