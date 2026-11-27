@@ -448,7 +448,9 @@ function yeguoCover(value, base, depth) {
 // 相同 key / IV、CBC、NoPadding（CCOptions(0)）。插件通过 coverTransform 交给
 // iOS PluginMedia 与 Android PluginMedia 原生解密；两端均支持 padding: "none"。
 // idj=drleao. 标记保留给旧版 Android 原生封面拦截路径，不能代替 coverTransform。
-const COVER_CRYPTO_MARK = 'idj=drleao.';
+// 野果封面由主程序 PluginMedia 根据 coverTransform 原生解密。
+// 保留站点返回的原始图片 URL，不再追加 idj=drleao. 查询参数；该旧标记
+// 属于早期 Android 专用拦截方案，不应进入 iOS idjimg:// 图片加载链路。
 const COVER_TRANSFORM = {
   type: 'aes',
   key: 'f5d965df75336270',
@@ -462,15 +464,10 @@ function isBiaceaCover(url) {
   const host = m ? m[1].toLowerCase() : '';
   return /(^|\.)biacea\.cn$/.test(host);
 }
-function appCover(url) {
-  const u = clean(url);
-  if (!u || !isBiaceaCover(u)) return u;
-  if (u.indexOf(COVER_CRYPTO_MARK) >= 0) return u;
-  return u + (u.indexOf('?') >= 0 ? '&' : '?') + COVER_CRYPTO_MARK;
-}
 function setCover(item, cover) {
-  const u = appCover(cover);
+  const u = clean(cover);
   if (!u) return;
+  // 图片 URL 保持原样，避免旧版 Android 解密标记污染原始 URL。
   item.cover = u;
   if (isBiaceaCover(u)) {
     item.coverTransform = COVER_TRANSFORM;
