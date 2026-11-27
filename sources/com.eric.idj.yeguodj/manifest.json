@@ -2,12 +2,12 @@
   "schema": 1,
   "id": "com.eric.idj.yeguodj",
   "name": "野果短剧",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "author": {
     "name": "Eric",
     "contact": "https://github.com/ericto888/iduanju-sources"
   },
-  "description": "野果短剧站源：原创、热门、都市、逆袭、古装、校园及 PMV 栏目；成人内容，需在客户端解锁后显示。",
+  "description": "野果短剧：官方 API 分集目录与播放解析，支持完整剧集列表、封面 CDN 和多编码播放地址。",
   "type": "shortdrama",
   "adult": true,
   "minAppVersion": "1.5",
@@ -23,7 +23,9 @@
       "ygdj27.com",
       "*.ygdj27.com",
       "ygdj29.com",
-      "*.ygdj29.com"
+      "*.ygdj29.com",
+      "api1.ldlmkzcq.cc",
+      "*.ldlmkzcq.cc"
     ],
     "media": [
       "yeguodj.com",
@@ -35,7 +37,9 @@
       "ygdj27.com",
       "*.ygdj27.com",
       "ygdj29.com",
-      "*.ygdj29.com"
+      "*.ygdj29.com",
+      "api1.ldlmkzcq.cc",
+      "*.ldlmkzcq.cc"
     ],
     "storage": true
   },
