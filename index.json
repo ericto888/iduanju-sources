@@ -60,8 +60,8 @@
       "manifest": "https://raw.githubusercontent.com/ericto888/iduanju-sources/main/sources/com.eric.idj.yeguodj/manifest.json",
       "type": "shortdrama",
       "adult": true,
-      "version": "0.4.4",
-      "description": "野果短剧：野果封面 AES 对齐主程序 AES-128-CBC NoPadding；保留分类封面修复、图片域名授权、播放 CDN HTTPS 适配及官方弹幕。",
+      "version": "0.4.5",
+      "description": "野果短剧：恢复原始封面 URL，移除旧版 Android 专用解密标记，保留主程序原生 AES 解密。",
       "category": "shortdrama",
       "author": "Eric"
     }
