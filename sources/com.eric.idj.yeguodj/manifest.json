@@ -2,12 +2,12 @@
   "schema": 1,
   "id": "com.eric.idj.yeguodj",
   "name": "野果短剧",
-  "version": "0.2.7",
+  "version": "0.2.8",
   "author": {
     "name": "Eric",
     "contact": "https://github.com/ericto888/iduanju-sources"
   },
-  "description": "野果短剧：统一封面地址解析，兼容相对路径、对象/数组封面及多种懒加载图片属性。",
+  "description": "野果短剧：增强封面地址解析，兼容相对路径、嵌套懒加载、srcset、占位图及对象/数组封面。",
   "type": "shortdrama",
   "adult": true,
   "minAppVersion": "1.5",
