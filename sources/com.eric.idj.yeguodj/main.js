@@ -189,29 +189,64 @@ async function discoverYeguoAccess() {
   let config = yeguoPublicConfig(entryRes.body);
   const priorityImports = [], fallbackImports = [];
   const addImport = function (reference, priority) {
-    const u = host.url.resolve({ base: entry, rel: reference });
-    const target = priority ? priorityImports : fallbackImports;
-    if (u.indexOf(origin + '/') === 0 && /\/_nuxt\/.*\.js(?:\?|$)/.test(u) && target.indexOf(u) < 0 && priorityImports.indexOf(u) < 0 && fallbackImports.indexOf(u) < 0 && u !== entry) target.push(u);
+    const ref = clean(reference);
+    if (!ref || !/\\.m?js(?:[?#]|$)/i.test(ref)) return;
+    let u = '';
+    if (/^https?:\\/\\//i.test(ref)) {
+      u = ref;
+    } else if (ref.indexOf('//') === 0) {
+      u = 'https:' + ref;
+    } else if (ref.charAt(0) === '/') {
+      u = origin + ref;
+    } else {
+      // Resolve relative chunks against the entry module directory. Do not
+      // depend on a host URL helper's treatment of minified relative imports.
+      const basePath = entry.slice(origin.length);
+      const dir = basePath.slice(0, basePath.lastIndexOf('/') + 1);
+      const parts = (dir + ref.split(/[?#]/)[0]).split('/');
+      const normalized = [];
+      for (let p = 0; p < parts.length; p++) {
+        if (!parts[p] || parts[p] === '.') continue;
+        if (parts[p] === '..') normalized.pop();
+        else normalized.push(parts[p]);
+      }
+      u = origin + '/' + normalized.join('/');
+      const suffix = /([?#].*)$/.exec(ref);
+      if (suffix) u += suffix[1];
+    }
+    if (u.indexOf(origin + '/_nuxt/') !== 0 || !/\\.m?js(?:[?#]|$)/i.test(u)) return;
+    if (u === entry || priorityImports.indexOf(u) >= 0 || fallbackImports.indexOf(u) >= 0) return;
+    (priority ? priorityImports : fallbackImports).push(u);
   };
-  // 兼容 Vite/Rollup 的具名导入、默认导入和动态 import。
-  const importRe = /import\s*\{([^{};]+)\}\s*from\s*["'\x60]([^"'\x60]+)["'\x60]|import\s+[^("' \x60][^;]{0,500}?\sfrom\s*["'\x60]([^"'\x60]+)["'\x60]|import\s*\(\s*["'\x60]([^"'\x60]+)["'\x60]\s*\)/g;
-  let im;
-  while ((im = importRe.exec(entryRes.body)) !== null) {
-    const ref = im[2] || im[3] || im[4];
-    if (ref) addImport(ref, !!(im[1] && im[1].indexOf(',') >= 0));
+  // Read modulepreload/preload references directly from the HTML as some
+  // Nuxt builds keep the dependency graph outside the entry bundle.
+  const preloadTags = doc.select('link[rel*="modulepreload"][href],link[rel="preload"][as="script"][href]');
+  for (let i = 0; i < preloadTags.length; i++) {
+    addImport(attr(preloadTags[i], 'href'), true);
   }
-  // 部分构建把异步 chunk 名称放在 preload 映射数组中，不使用静态 import。
-  const chunkRe = /["'\x60](\/_nuxt\/[^"'\x60]+\.js(?:\?[^"'\x60]*)?)["'\x60]/g;
+  // Match named imports (same ordering as the native GuoApp provider), bare
+  // side-effect imports, default imports, and dynamic import() chunks.
+  const namedImportRe = /import\\s*\\{([^{};]{1,2400})\\}\\s*from\\s*["'\\x60]([^"'\\x60]+)["'\\x60]/g;
+  let im;
+  while ((im = namedImportRe.exec(entryRes.body)) !== null) {
+    addImport(im[2], im[1].indexOf(',') >= 0);
+  }
+  const importPathRe = /(?:\\bfrom\\s*|\\bimport\\s*(?:\\(\\s*)?)["'\\x60]([^"'\\x60]+\\.m?js(?:[?#][^"'\\x60]*)?)["'\\x60]\\s*\\)?/g;
+  while ((im = importPathRe.exec(entryRes.body)) !== null) addImport(im[1], false);
+  // Nuxt/Vite preload maps may store chunk paths as plain string literals.
+  const chunkRe = /["'\\x60]((?:\\.\\.?\\/|\\/_nuxt\\/)[^"'\\x60]+\\.m?js(?:[?#][^"'\\x60]*)?)["'\\x60]/g;
   while ((im = chunkRe.exec(entryRes.body)) !== null) addImport(im[1], false);
   const orderedImports = priorityImports.concat(fallbackImports);
-  for (let i = 0; i < orderedImports.length && i < 20 && (!config || !apiBase); i++) {
+  let scannedModules = 0;
+  for (let i = 0; i < orderedImports.length && i < 40 && (!config || !apiBase); i++) {
     try {
       const chunk = await requestUrl(orderedImports[i], home.url);
+      scannedModules++;
       if (!apiBase) apiBase = yeguoApiBaseFromScript(chunk.body, origin);
       if (!config) config = yeguoPublicConfig(chunk.body);
     } catch (_) {}
   }
-  if (!config) throw host.error('E_PARSE', '野果接口加密配置未找到，站点前端可能已更新');
+  if (!config) throw host.error('E_PARSE', '野果接口加密配置未找到（入口依赖 ' + orderedImports.length + ' 个，已扫描 ' + scannedModules + ' 个），站点前端可能已更新');
   if (!apiBase) apiBase = origin + '/api.php';
   if (!/^https:\/\/(?:[a-z0-9-]+\.)?yeguodj\.com(?::443)?(?:\/|$)/i.test(apiBase)) throw host.error('E_PERMISSION', '野果接口地址不在已授权站点内');
   const access = {
