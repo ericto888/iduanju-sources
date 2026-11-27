@@ -2,12 +2,12 @@
   "schema": 1,
   "id": "com.eric.idj.yeguodj",
   "name": "野果短剧",
-  "version": "0.4.6",
+  "version": "0.4.7",
   "author": {
     "name": "Eric",
     "contact": "https://github.com/ericto888/iduanju-sources"
   },
-  "description": "野果短剧：增加封面链路诊断，记录 HTML 解析、Nuxt payload 映射、剧集匹配、图片域名及 AES 解密参数传递状态；不改变封面解密逻辑。",
+  "description": "野果短剧：支持 pic.nsxxlj.cn AES-128-CBC NoPadding 封面解密，保留原有 biacea.cn 解密及封面诊断。",
   "type": "shortdrama",
   "adult": true,
   "minAppVersion": "1.5",
