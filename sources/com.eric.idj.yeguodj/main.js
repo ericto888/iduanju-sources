@@ -50,19 +50,26 @@ function parseDoc(body, url) { return host.html.parse(body, url); }
 function text(node) { return node ? clean(node.text()) : ''; }
 function attr(node, key) { return node ? clean(node.attr(key)) : ''; }
 
-function imageCandidateFromNode(node) {
+function imageCandidateFromNode(node, base) {
   if (!node) return '';
   const keys = ['data-src', 'data-original', 'data-lazy-src', 'data-original-src',
     'data-url', 'data-image', 'data-echo', 'data-lazy', 'src'];
   for (let i = 0; i < keys.length; i++) {
     const value = attr(node, keys[i]);
-    if (value) return value;
+    const cover = yeguoCover(value, base);
+    if (cover) return cover;
   }
   const srcset = attr(node, 'data-srcset') || attr(node, 'srcset');
-  if (srcset) return srcset.split(',')[0].trim().split(/\s+/)[0];
+  if (srcset) {
+    const candidates = srcset.split(',');
+    for (let i = 0; i < candidates.length; i++) {
+      const cover = yeguoCover(candidates[i].trim().split(/\s+/)[0], base);
+      if (cover) return cover;
+    }
+  }
   const style = attr(node, 'style');
   const css = /url\(\s*['"]?([^'")]+)['"]?\s*\)/i.exec(style);
-  return css ? css[1] : '';
+  return css ? yeguoCover(css[1], base) : '';
 }
 function pageItems(body, base) {
   const doc = parseDoc(body, base);
@@ -75,11 +82,13 @@ function pageItems(body, base) {
     if (!m || seen[m[1]]) continue;
     const img = a.selectFirst('img');
     const source = a.selectFirst('picture source') || a.selectFirst('source');
+    const lazyNode = a.selectFirst('[data-lazy-src]') || a.selectFirst('[data-src]') ||
+      a.selectFirst('[data-original]') || a.selectFirst('[style*="background"]');
     const title = clean(attr(img, 'alt') || attr(a, 'title') || text(a));
     if (!title) continue;
     seen[m[1]] = true;
-    const cover = yeguoCover(imageCandidateFromNode(img) || imageCandidateFromNode(source) ||
-      imageCandidateFromNode(a), base);
+    const cover = imageCandidateFromNode(img, base) || imageCandidateFromNode(source, base) ||
+      imageCandidateFromNode(lazyNode, base) || imageCandidateFromNode(a, base);
     const item = { id: m[1], title: title };
     if (cover) {
       item.cover = cover;
