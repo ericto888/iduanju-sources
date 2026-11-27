@@ -165,7 +165,7 @@ function parseCards(body,siteHost) {
     if(!title)continue;
     let cover=image.cover?coverAddress(siteHost,image.cover,""):"";if(!cover&&entry)cover=coverAddress(siteHost,entry.cover,entry.fallback);
     const ep=EPISODE_RE.exec(segment),heat=HEAT_RE.exec(segment),count=ep?Number(ep[1]):(entry?entry.episodes:0);
-    const item={id:alias,title,remarks:count>0?"更新至"+count+"集":""};
+    const item={id:alias,title,remarks:count>0?"更新至"+count+"集":"",orientation:"portrait"};
     const views=heat?heat[1]+"热度":(entry&&entry.heat?entry.heat+"热度":"");
     if(cover)item.cover=cover;if(views)item.views=views;seen[alias]=true;items.push(item);
   }
@@ -197,7 +197,7 @@ function parseCards(body,siteHost) {
       let cover=image.cover?coverAddress(siteHost,image.cover,""):"";
       if(!cover&&entry)cover=coverAddress(siteHost,entry.cover,entry.fallback);
       const ep=EPISODE_RE.exec(context),heat=HEAT_RE.exec(context),count=ep?Number(ep[1]):(entry?entry.episodes:0);
-      const item={id:alias,title,remarks:count>0?"更新至"+count+"集":""};
+      const item={id:alias,title,remarks:count>0?"更新至"+count+"集":"",orientation:"portrait"};
       const views=heat?heat[1]+"热度":(entry&&entry.heat?entry.heat+"热度":"");
       if(cover)item.cover=cover;if(views)item.views=views;
       seen[alias]=true;items.push(item);
@@ -240,7 +240,7 @@ function parseSearchCardsDOM(body,siteHost) {
     if(!cover&&entry)cover=coverAddress(siteHost,entry.cover,entry.fallback);
     const ep=EPISODE_RE.exec(anchorText),heat=HEAT_RE.exec(anchorText);
     const count=ep?Number(ep[1]):(entry?entry.episodes:0);
-    const item={id:alias,title:title,remarks:count>0?"更新至"+count+"集":""};
+    const item={id:alias,title:title,remarks:count>0?"更新至"+count+"集":"",orientation:"portrait"};
     const views=heat?heat[1]+"热度":(entry&&entry.heat?entry.heat+"热度":"");
     if(cover)item.cover=cover;
     if(views)item.views=views;
