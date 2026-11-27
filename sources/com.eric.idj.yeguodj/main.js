@@ -511,9 +511,9 @@ export default {
     if (!path) throw host.error('E_NOT_FOUND', '未知的野果短剧分类');
     const res = await requestUrl(ORIGIN + path);
     const items = pageItems(res.body, res.url);
-    if (items.some(function (x) { return !x.cover; })) {
-      applyCovers(items, await fetchCoverMap(res.body, res.url), res.url);
-    }
+    // HTML img.src 可能始终有占位图，不能以“已有 cover”判断正式封面是否存在。
+    // 每页都读取 Nuxt payload，并让正式封面覆盖 HTML 懒加载占位图。
+    applyCovers(items, await fetchCoverMap(res.body, res.url), res.url);
     return { items: items, page: p, hasMore: items.length > 0 && hasNext(res.body, p) };
   },
 
