@@ -366,7 +366,7 @@ export default {
       const row = rows[i] || {};
       const id = clean(row.video_id || row.id);
       const title = clean(row.title);
-      if (!/^\\d+$/.test(id) || !title || seen[id]) continue;
+      if (!/^\d+$/.test(id) || !title || seen[id]) continue;
       seen[id] = true;
       const item = { id: id, title: title };
       const cover = yeguoCover(row.cover, ORIGIN);
