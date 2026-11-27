@@ -3,10 +3,22 @@
   "name": "Eric的站源商店",
   "updatedAt": "2026-11-27",
   "categories": [
-    { "id": "video", "name": "长视频" },
-    { "id": "shortdrama", "name": "短剧" },
-    { "id": "comic", "name": "漫画" },
-    { "id": "live", "name": "直播" }
+    {
+      "id": "video",
+      "name": "长视频"
+    },
+    {
+      "id": "shortdrama",
+      "name": "短剧"
+    },
+    {
+      "id": "comic",
+      "name": "漫画"
+    },
+    {
+      "id": "live",
+      "name": "直播"
+    }
   ],
   "plugins": [
     {
@@ -48,7 +60,7 @@
       "manifest": "https://raw.githubusercontent.com/ericto888/iduanju-sources/main/sources/com.eric.idj.yeguodj/manifest.json",
       "type": "shortdrama",
       "adult": true,
-      "version": "0.1.0",
+      "version": "0.1.1",
       "description": "野果短剧：原创、热门、都市、逆袭、古装、校园及 PMV 栏目；成人内容，需在客户端解锁后显示。",
       "category": "shortdrama",
       "author": "Eric"
