@@ -55,7 +55,7 @@ function coverDiag(message) {
   try { host.log('[封面诊断] ' + clean(message).slice(0, 420)); } catch (_) {}
 }
 function coverHost(url) {
-  const m = /^https?:\\/\\/([^/?#]+)/i.exec(String(url || ''));
+  const m = /^https?:\/\/([^/?#]+)/i.exec(String(url || ''));
   return m ? m[1].toLowerCase() : 'none';
 }
 
@@ -149,7 +149,7 @@ async function fetchCoverMap(body, base) {
     coverDiag('payload HTTP成功：status=2xx，host=' + coverHost(res.url || payloadUrl) + '，bodyLength=' + res.body.length);
     return coverMapFromPayload(res.body);
   } catch (err) {
-    const msg = clean(err && (err.message || err)).replace(/https?:\\/\\/[^\\s]+/g, '[url]').slice(0, 120);
+    const msg = clean(err && (err.message || err)).replace(/https?:\/\/[^\s]+/g, '[url]').slice(0, 120);
     coverDiag('payload请求失败：' + (msg || 'unknown error'));
     return {};
   }
