@@ -620,7 +620,7 @@ export default {
       let media = absolute(raw, referer);
       // This official playback CDN currently returns an HTTP URL. Keep the
       // app's HTTPS-only media policy: upgrade only this exact known host.
-      if (/^http:\/\/op\.micgqv\.cn(?=[:/])/i.test(media)) {
+      if (/^http:\/\/(?:op\.micgqv\.cn|op\.orwebn\.cn)(?=[:/])/i.test(media)) {
         media = media.replace(/^http:\/\//i, 'https://');
       }
       if (!media || !/^https:\/\//i.test(media) || seen[media]) return;
