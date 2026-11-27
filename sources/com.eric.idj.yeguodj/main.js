@@ -157,7 +157,7 @@ async function fetchCoverMap(body, base) {
 // _payload.json 保存的是站点正式剧集封面；列表 HTML 中的 img.src
 // 可能只是横版/低清懒加载占位图，因此只要 payload 有对应封面就应覆盖 HTML 候选图。
 function applyCovers(items, map, base) {
-  let matched = 0, biacea = 0, transformed = 0;
+  let matched = 0, biacea = 0, aesHosts = 0, transformed = 0;
   const hosts = {};
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
@@ -167,9 +167,10 @@ function applyCovers(items, map, base) {
     setCover(item, cover);
     matched++;
     const h = coverHost(cover); hosts[h] = true;
-    if (isBiaceaCover(cover)) { biacea++; if (item.coverTransform && item.coverTransform.type === 'aes') transformed++; }
+    if (isBiaceaCover(cover)) biacea++;
+    if (isAESCover(cover)) { aesHosts++; if (item.coverTransform && item.coverTransform.type === 'aes') transformed++; }
   }
-  coverDiag('封面匹配：items=' + items.length + '，payloadMap=' + Object.keys(map || {}).length + '，matched=' + matched + '，biacea=' + biacea + '，AESTransform=' + transformed + '，hosts=' + Object.keys(hosts).slice(0, 4).join(','));
+  coverDiag('封面匹配：items=' + items.length + '，payloadMap=' + Object.keys(map || {}).length + '，matched=' + matched + '，biacea=' + biacea + '，AES域名=' + aesHosts + '，AESTransform=' + transformed + '，hosts=' + Object.keys(hosts).slice(0, 4).join(','));
 }
 function hasNext(body, page) {  const html = String(body || '');
   if (/rel=["']next["']|下一页|下页|Next/i.test(html)) return true;
@@ -490,12 +491,18 @@ function isBiaceaCover(url) {
   const host = m ? m[1].toLowerCase() : '';
   return /(^|\.)biacea\.cn$/.test(host);
 }
+function isAESCover(url) {
+  const m = /^https?:\/\/([^/?#]+)/i.exec(String(url || ''));
+  const host = m ? m[1].toLowerCase() : '';
+  // 野果当前图片 CDN 默认返回与黄果 AI 相同的 AES-128-CBC NoPadding 密文。
+  return isBiaceaCover(url) || host === 'pic.nsxxlj.cn' || host.endsWith('.nsxxlj.cn');
+}
 function setCover(item, cover) {
   const u = clean(cover);
   if (!u) return;
   // 图片 URL 保持原样，避免旧版 Android 解密标记污染原始 URL。
   item.cover = u;
-  if (isBiaceaCover(u)) {
+  if (isAESCover(u)) {
     item.coverTransform = COVER_TRANSFORM;
   } else {
     item.coverHeaders = { Referer: ORIGIN + '/' };
