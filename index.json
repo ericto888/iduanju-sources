@@ -60,8 +60,8 @@
       "manifest": "https://raw.githubusercontent.com/ericto888/iduanju-sources/main/sources/com.eric.idj.yeguodj/manifest.json",
       "type": "shortdrama",
       "adult": true,
-      "version": "0.4.8",
-      "description": "野果短剧：支持 AES 封面解密，修正竖版海报显示比例。",
+      "version": "0.4.9",
+      "description": "野果短剧：支持 AES 封面解密、竖版海报显示，并在首页、分类及搜索封面显示更新集数或完结总集数。",
       "category": "shortdrama",
       "author": "Eric"
     }
