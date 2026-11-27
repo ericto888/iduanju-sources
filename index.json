@@ -60,8 +60,8 @@
       "manifest": "https://raw.githubusercontent.com/ericto888/iduanju-sources/main/sources/com.eric.idj.yeguodj/manifest.json",
       "type": "shortdrama",
       "adult": true,
-      "version": "0.1.1",
-      "description": "野果短剧：原创、热门、都市、逆袭、古装、校园及 PMV 栏目；成人内容，需在客户端解锁后显示。",
+      "version": "0.2.0",
+      "description": "野果短剧：官方 API 分集目录与播放解析，支持完整剧集列表、封面 CDN 和多编码播放地址。",
       "category": "shortdrama",
       "author": "Eric"
     }
