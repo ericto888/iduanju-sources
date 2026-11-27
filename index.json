@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "name": "iDuanJu 站源商店",
-  "updatedAt": "2026-11-26",
+  "updatedAt": "2026-11-27",
   "categories": [
     {
       "id": "video",
@@ -53,6 +53,17 @@
       "category": "video",
       "author": "iDuanJu 社区移植",
       "version": "1.0.11"
+    },
+    {
+      "id": "com.eric.idj.yeguodj",
+      "name": "野果短剧",
+      "manifest": "https://raw.githubusercontent.com/ericto888/iduanju-sources/main/sources/com.eric.idj.yeguodj/manifest.json",
+      "type": "shortdrama",
+      "adult": true,
+      "version": "0.1.0",
+      "description": "野果短剧：原创、热门、都市、逆袭、古装、校园及 PMV 栏目；成人内容，需在客户端解锁后显示。播放解析待真机验证。",
+      "category": "shortdrama",
+      "author": "iDuanJu 社区移植"
     }
   ]
 }
