@@ -2,12 +2,12 @@
   "schema": 1,
   "id": "com.eric.idj.yeguodj",
   "name": "野果短剧",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "author": {
     "name": "Eric",
     "contact": "https://github.com/ericto888/iduanju-sources"
   },
-  "description": "野果短剧：新增 pic.nsxxlj.cn 封面域名授权，并适配 op.orwebn.cn 播放 CDN 的 HTTPS 地址；保留原生 AES 封面解密及官方弹幕。",
+  "description": "野果短剧：修复分类页 HTML 懒加载占位图覆盖正式封面的问题；保留 pic.nsxxlj.cn 图片授权、播放 CDN HTTPS 适配、原生 AES 封面解密及官方弹幕。",
   "type": "shortdrama",
   "adult": true,
   "minAppVersion": "1.5",
