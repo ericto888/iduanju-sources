@@ -203,7 +203,7 @@ function parseDramaCards(doc, selector, base) {
     const title = clean(attrOf(img, 'alt') || textOf(card.selectFirst('.hg-drama-card__title')) || textOf(card.selectFirst('h3')));
     if (!title) continue;
     seen[m[1]] = 1;
-    const item = { id: m[1], title: title, cover: coverFor(base, m[1]) };
+    const item = { id: m[1], title: title, cover: coverFor(base, m[1]), orientation: 'portrait' };
     const remarks = remarksOf(card.selectFirst('.hg-drama-card__episode'));
     if (remarks) item.remarks = remarks;
     items.push(item);
@@ -224,7 +224,7 @@ function parseCategoryTiles(doc, selector, base) {
     const title = clean(attrOf(img, 'alt') || textOf(a.selectFirst('.hg-category-item__title')));
     if (!title) continue;
     seen[m[1]] = 1;
-    items.push({ id: m[1], title: title, cover: coverFor(base, m[1]) });
+    items.push({ id: m[1], title: title, cover: coverFor(base, m[1]), orientation: 'portrait' });
   }
   return items;
 }
