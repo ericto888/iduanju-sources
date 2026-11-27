@@ -113,6 +113,168 @@ function titleFromDoc(doc, fallback) {
     text(doc.selectFirst('.video-title')) || clean(fallback);
 }
 
+
+// 野果新版 API：详情/分集/播放均使用站点官方接口，避免 HTML 页面只暴露首集。
+let yeguoAccessCache = null;
+const YEGUO_CONFIG_TTL = 45 * 60 * 1000;
+
+function apiUrl(base, path) { return base.replace(/\/+$/, '') + path; }
+function apiPublicBytes(value) {
+  const s = clean(value);
+  if (s.indexOf('_') < 0) return { value: s, encoding: 'utf8' };
+  const bytes = s.split('_').map(function (n) { return Number(n); });
+  if (!bytes.length || bytes.some(function (n) { return !Number.isInteger(n) || n < 0 || n > 255; })) return null;
+  return { value: bytes.map(function (n) { return String.fromCharCode(n); }).join(''), encoding: 'latin1' };
+}
+function yeguoApiBaseFromScript(script, origin) {
+  const calls = /baseURL:([a-zA-Z_$][a-zA-Z0-9_$]*)\([a-zA-Z_$]?[a-zA-Z0-9_$]*\)/g;
+  let call;
+  while ((call = calls.exec(script)) !== null) {
+    const name = call[1];
+    const literal = new RegExp('(?:^|[^a-zA-Z0-9_$.])' + name + '=\\(\\)=>["\x60](https?://[^"\x60\\s]{1,512})["\x60]');
+    const found = literal.exec(script);
+    if (found) return found[1].replace(/\/+$/, '');
+    const same = new RegExp('(?:^|[^a-zA-Z0-9_$.])' + name + '=\\([^()]{0,40}\\)=>\\{[\\s\\S]{0,400}?origin:([a-zA-Z_$][a-zA-Z0-9_$]*)[\\s\\S]{0,400}?\\x60\\$\\{([a-zA-Z_$][a-zA-Z0-9_$]*)\\}/api\\.php\\x60');
+    const sm = same.exec(script);
+    if (sm && sm[1] === sm[2]) return origin.replace(/\/+$/, '') + '/api.php';
+  }
+  return '';
+}
+function yeguoApiBaseFromNuxt(html) {
+  const m = /<script[^>]+id=["']__NUXT_DATA__["'][^>]*>([\s\S]*?)<\/script>/i.exec(html);
+  if (!m) return '';
+  try {
+    const table = JSON.parse(m[1]);
+    if (!Array.isArray(table) || table.length > 100000) return '';
+    for (let i = 0; i < table.length; i++) {
+      const row = table[i];
+      if (!row || typeof row !== 'object' || row.apiBaseURL == null) continue;
+      const ref = Number(row.apiBaseURL);
+      if (Number.isInteger(ref) && ref >= 0 && ref < table.length && typeof table[ref] === 'string') {
+        return table[ref].replace(/\/+$/, '');
+      }
+    }
+  } catch (_) {}
+  return '';
+}
+function yeguoPublicConfig(script) {
+  const fields = {};
+  const re = /\b(version|mode|padding|key|iv|sign_key)\s*:\s*(?:[a-zA-Z_$][a-zA-Z0-9_$]*\(\s*)?["'\x60]([^"'\x60\\\r\n]{1,512})["'\x60]/g;
+  let m;
+  while ((m = re.exec(script)) !== null) fields[m[1]] = m[2];
+  if (fields.version !== 'v0' || fields.mode !== 'CBC' || fields.padding !== 'Pkcs7') return null;
+  const key = apiPublicBytes(fields.key), iv = apiPublicBytes(fields.iv), sign = apiPublicBytes(fields.sign_key);
+  if (!key || !iv || !sign) return null;
+  const keyLength = key.encoding === 'latin1' ? key.value.length : key.value.length;
+  if (![16, 24, 32].includes(keyLength) || iv.value.length !== 16 || !sign.value.length || sign.value.length > 128) return null;
+  return { key: key, iv: iv, signKey: sign };
+}
+async function discoverYeguoAccess() {
+  if (yeguoAccessCache && Date.now() - yeguoAccessCache.loadedAt < YEGUO_CONFIG_TTL) return yeguoAccessCache;
+  const home = await requestUrl(ORIGIN + '/');
+  const origin = ORIGIN;
+  let apiBase = yeguoApiBaseFromNuxt(home.body);
+  const doc = parseDoc(home.body, home.url);
+  const moduleTags = doc.select('script[type="module"]');
+  let entry = '';
+  for (let i = 0; i < moduleTags.length; i++) {
+    const candidate = absolute(attr(moduleTags[i], 'src'), home.url);
+    if (candidate && candidate.indexOf(origin + '/') === 0 && /\/_nuxt\/.*\.js(?:\?|$)/.test(candidate)) {
+      entry = candidate; break;
+    }
+  }
+  if (!entry) throw host.error('E_PARSE', '野果首页未找到接口配置脚本');
+  const entryRes = await requestUrl(entry, home.url);
+  if (!apiBase) apiBase = yeguoApiBaseFromScript(entryRes.body, origin);
+  let config = yeguoPublicConfig(entryRes.body);
+  const imports = [];
+  const importRe = /import\s*\{([^{};]+)\}\s*from\s*["'\x60]([^"'\x60]+)["'\x60]/g;
+  let im;
+  while ((im = importRe.exec(entryRes.body)) !== null) {
+    const u = host.url.resolve({ base: entry, rel: im[2] });
+    if (u.indexOf(origin + '/') === 0 && /\/_nuxt\/.*\.js(?:\?|$)/.test(u) && imports.indexOf(u) < 0) imports.push(u);
+  }
+  // 配置常位于 entry 的静态依赖中；最多读取 20 个同源 Nuxt 模块。
+  for (let i = 0; i < imports.length && i < 20 && (!config || !apiBase); i++) {
+    const chunk = await requestUrl(imports[i], home.url);
+    if (!apiBase) apiBase = yeguoApiBaseFromScript(chunk.body, origin);
+    if (!config) config = yeguoPublicConfig(chunk.body);
+  }
+  if (!config) throw host.error('E_PARSE', '野果接口加密配置未找到，站点前端可能已更新');
+  if (!apiBase) apiBase = origin + '/api.php';
+  if (!/^https:\/\/(?:[a-z0-9-]+\.)?yeguodj\.com(?::443)?(?:\/|$)/i.test(apiBase)) throw host.error('E_PERMISSION', '野果接口地址不在已授权站点内');
+  const access = {
+    base: apiBase, site: origin, key: config.key, iv: config.iv, signKey: config.signKey,
+    identifier: host.crypto.random({ n: 16 }), loadedAt: Date.now()
+  };
+  yeguoAccessCache = access;
+  return access;
+}
+async function yeguoDecodeResponse(body, access) {
+  let envelope;
+  try { envelope = JSON.parse(body); } catch (_) { throw host.error('E_PARSE', '野果接口返回的不是有效 JSON'); }
+  if (!envelope || typeof envelope !== 'object') throw host.error('E_PARSE', '野果接口响应格式无效');
+  if (envelope.sign) {
+    const keys = Object.keys(envelope).filter(function (k) { return k !== 'sign' && k !== '_ver' && envelope[k] != null; }).sort();
+    const pieces = [];
+    for (let i = 0; i < keys.length; i++) {
+      const k = keys[i], v = envelope[k];
+      if (typeof v !== 'string' && typeof v !== 'number' && typeof v !== 'boolean') throw host.error('E_PARSE', '野果响应签名字段格式无效');
+      pieces.push(k + '=' + (k === 'data' ? String(v).replace(/ /g, '+') : String(v)));
+    }
+    const digest = host.crypto.hash({ alg: 'sha256', data: pieces.join('&') + access.signKey.value, in: access.signKey.encoding, out: 'hex' });
+    const expected = host.crypto.hash({ alg: 'md5', data: digest, in: 'utf8', out: 'hex' });
+    if (expected.toLowerCase() !== String(envelope.sign).toLowerCase()) throw host.error('E_PARSE', '野果接口响应签名校验失败');
+  }
+  if (typeof envelope.data === 'string') {
+    const plain = host.crypto.aes({
+      op: 'decrypt', mode: 'cbc', key: access.key.value, keyEncoding: access.key.encoding,
+      iv: access.iv.value, ivEncoding: access.iv.encoding, data: envelope.data.replace(/ /g, '+'),
+      in: 'base64', out: 'utf8', padding: 'pkcs7'
+    });
+    try { envelope = JSON.parse(plain); } catch (_) { throw host.error('E_PARSE', '野果接口数据解密失败'); }
+  }
+  return envelope;
+}
+async function yeguoApiCall(path, params, method) {
+  const access = await discoverYeguoAccess();
+  const values = Object.assign({
+    bundleId: 'com.pwa.mater', version: '1.3.2', oauth_type: 'web',
+    language: 'zh', via: 'pwa', oauth_id: access.identifier,
+    trace_id: access.identifier, token: ''
+  }, params || {});
+  const headers = {
+    'User-Agent': UA, 'Accept': 'application/json, text/plain, */*',
+    'Origin': access.site, 'Referer': access.site + '/'
+  };
+  let url = apiUrl(access.base, path), options = { url: url, method: method || 'POST', headers: headers, timeout: 30000 };
+  if (options.method === 'GET') {
+    const query = Object.keys(values).sort().map(function (k) {
+      return encodeURIComponent(k) + '=' + encodeURIComponent(String(values[k]));
+    }).join('&');
+    options.url += '?' + query;
+  } else {
+    options.body = values; options.bodyType = 'form';
+    headers['Content-Type'] = 'application/x-www-form-urlencoded';
+  }
+  const res = await host.http.request(options);
+  if (!res || res.status < 200 || res.status >= 300) throw host.error('E_HTTP', '野果接口请求失败：HTTP ' + (res ? res.status : 0));
+  const payload = await yeguoDecodeResponse(String(res.body || ''), access);
+  if (String(payload.status) !== '1') {
+    if (String(payload.status) === '-1') throw host.error('E_PERMISSION', '野果当前内容需要站源授权');
+    throw host.error('E_PARSE', clean(payload.msg) || '野果接口未完成请求');
+  }
+  if (!payload.data || typeof payload.data !== 'object') throw host.error('E_PARSE', '野果接口缺少 data 数据');
+  return payload.data;
+}
+function yeguoCover(value, base) {
+  const cover = absolute(value, base || ORIGIN);
+  return cover || '';
+}
+function yeguoEpisodePage(id, number) {
+  return ORIGIN + '/drama/video/' + id + (number > 1 ? '/ep-' + number : '') + '/';
+}
+
 export default {
   async home() {
     const res = await requestUrl(ORIGIN + '/');
@@ -158,40 +320,60 @@ export default {
   async detail({ id }) {
     const vid = clean(id);
     if (!/^\d+$/.test(vid)) throw host.error('E_NOT_FOUND', '无效的野果剧集 ID');
-    const res = await requestUrl(ORIGIN + '/drama/detail/' + vid + '/');
-    const doc = parseDoc(res.body, res.url);
-    const title = titleFromDoc(doc, '野果短剧 ' + vid);
-    const desc = text(doc.selectFirst('.description')) || text(doc.selectFirst('.entry-content')) || '';
-    const links = doc.select('a[href*="/drama/video/"]');
-    const episodes = [], seen = {};
-    for (let i = 0; i < links.length; i++) {
-      const epId = episodeIdFromHref(attr(links[i], 'href'));
-      if (!epId || seen[epId]) continue;
+    const row = await yeguoApiCall('/api/playlet/detail', {
+      video_id: vid, id: vid, episode_id: '0', related_limit: '0'
+    });
+    const returnedId = clean(row.video_id || row.id);
+    if (returnedId !== vid) throw host.error('E_PARSE', '野果详情与请求剧集不匹配');
+    const title = clean(row.title) || ('野果短剧 ' + vid);
+    const episodes = Array.isArray(row.episodes) ? row.episodes : [];
+    const seen = {};
+    const normalized = [];
+    for (let i = 0; i < episodes.length; i++) {
+      const ep = episodes[i] || {};
+      if (String(ep.is_adv) === '1' || ep.is_adv === true) continue;
+      const epId = clean(ep.id), sort = Number(ep.sort);
+      if (!/^\d+$/.test(epId) || !Number.isInteger(sort) || sort < 1 || seen[epId]) continue;
       seen[epId] = true;
-      episodes.push({ id: epId, name: text(links[i]) || ('第' + (episodes.length + 1) + '集') });
+      normalized.push({ id: epId, sort: sort, name: clean(ep.title) || ('第' + sort + '集') });
     }
-    if (!episodes.length) episodes.push({ id: vid, name: '正片' });
-    const img = doc.selectFirst('meta[property="og:image"]');
-    const cover = absolute(attr(img, 'content'), res.url);
-    const result = { title: title, desc: desc, lines: [{ name: '默认线路', episodes: episodes }] };
+    normalized.sort(function (a, b) { return a.sort - b.sort; });
+    if (!normalized.length) throw host.error('E_PARSE', '野果详情接口未返回有效分集列表');
+    const result = {
+      title: title,
+      desc: clean(row.description),
+      lines: [{ name: '默认线路', episodes: normalized.map(function (ep) { return { id: ep.id, name: ep.name }; }) }]
+    };
+    const cover = yeguoCover(row.cover, ORIGIN);
     if (cover) result.cover = cover;
     return result;
   },
 
-  async play({ episodeId }) {
+  async play({ episodeId, id }) {
     const ep = clean(episodeId);
     if (!/^\d+$/.test(ep)) throw host.error('E_PARSE', '无效的野果剧集播放 ID');
-    const url = ORIGIN + '/drama/video/' + ep + '/';
-    const res = await requestUrl(url, ORIGIN + '/');
-    let media = mediaFromHtml(res.body);
-    if (!media) {
-      const iframe = iframeFromHtml(res.body, res.url);
-      if (iframe) {
-        const embedded = await requestUrl(iframe, res.url);
-        media = mediaFromHtml(embedded.body);
-      }
+    const dramaId = clean(id);
+    const row = await yeguoApiCall('/api/playlet/play', {
+      playlet_id: dramaId, video_id: dramaId, episode_id: ep
+    });
+    if (clean(row.id) !== ep || (dramaId && clean(row.playlet_id) !== dramaId)) {
+      throw host.error('E_PARSE', '野果返回的播放地址与请求分集不匹配');
     }
-    if (!media) throw host.error('E_PARSE', '播放页未提取到 m3u8/MP4 地址；请检查站点播放器是否已改版');
-    return { streams: [{ name: '默认线路', url: media, format: /\.m3u8(?:[?#]|$)/i.test(media) ? 'hls' : 'mp4', headers: { Referer: res.url } }] };
-  }
-};
+    if (String(row.is_adv) === '1' || row.is_adv === true) throw host.error('E_NOT_FOUND', '野果未返回该集正片');
+    const referer = yeguoEpisodePage(dramaId || clean(row.playlet_id), Number(row.episode_sort) || 1);
+    const streams = [], seen = {};
+    ['video_url', 'video_url_h265'].forEach(function (field) {
+      const raw = clean(row[field]);
+      const media = absolute(raw, referer);
+      if (!media || !/^https:\/\//i.test(media) || seen[media]) return;
+      seen[media] = true;
+      streams.push({
+        name: clean(row.resolution) || (field === 'video_url_h265' ? 'H.265' : '默认线路'),
+        url: media,
+        format: /\.m3u8(?:[?#]|$)/i.test(media) ? 'hls' : 'mp4',
+        headers: { Referer: referer }
+      });
+    });
+    if (!streams.length) throw host.error('E_PARSE', '野果播放接口未返回有效 m3u8/MP4 地址');
+    return { streams: streams };
+  }};
