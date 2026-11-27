@@ -2,12 +2,12 @@
   "schema": 1,
   "id": "com.eric.idj.yeguodj",
   "name": "野果短剧",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "author": {
     "name": "Eric",
     "contact": "https://github.com/ericto888/iduanju-sources"
   },
-  "description": "野果短剧：官方 API 分集目录与播放解析，支持完整剧集列表、封面 CDN 和多编码播放地址。",
+  "description": "野果短剧：官方 API 完整分集与播放解析，增强 Nuxt 模块配置发现和封面 CDN 支持。",
   "type": "shortdrama",
   "adult": true,
   "minAppVersion": "1.5",
