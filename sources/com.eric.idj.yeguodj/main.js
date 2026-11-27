@@ -135,11 +135,11 @@ function coverMapFromPayload(text) {
     if (cover) map[key] = cover;
 
     // Nuxt payload 中的剧集列表对象同时包含集数和连载状态。
-    const countValue = payloadRef(table,
-      row.episode_count != null ? row.episode_count :
-      row.episodes != null ? row.episodes : row.total_serial);
+    // devalue 中的数字原值就是数字，不能当作 table 索引再次解引用。
+    const countValue = row.episode_count != null ? row.episode_count :
+      row.episodes != null ? row.episodes : row.total_serial;
     const count = Number(countValue);
-    const statusValue = payloadRef(table, row.serialize_status);
+    const statusValue = row.serialize_status;
     const status = String(statusValue == null ? '' : statusValue);
     if (Number.isFinite(count) && count > 0) {
       metadata[key] = { count: Math.floor(count), status: status };
