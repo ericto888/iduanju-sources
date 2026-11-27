@@ -608,7 +608,11 @@ export default {
       setCover(item, yeguoCover(row.cover, ORIGIN));
       if (items.length < 3) coverDiag('搜索封面：host=' + coverHost(item.cover) + '，AESTransform=' + !!(item.coverTransform && item.coverTransform.type === 'aes'));
       const count = Number(row.episode_count || row.episodes || row.total_serial);
-      if (Number.isFinite(count) && count > 0) item.remarks = count + '集';
+      if (Number.isFinite(count) && count > 0) {
+        item.remarks = String(row.serialize_status) === '2'
+          ? '全' + Math.floor(count) + '集'
+          : '更新至' + Math.floor(count) + '集';
+      }
       items.push(item);
     }
     const limit = Math.max(1, Number(data.limit || data.page_size || data.pageSize) || 20);
