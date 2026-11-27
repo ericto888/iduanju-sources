@@ -251,7 +251,7 @@ async function discoverYeguoAccess() {
   if (!/^https:\/\/(?:[a-z0-9-]+\.)?yeguodj\.com(?::443)?(?:\/|$)/i.test(apiBase)) throw host.error('E_PERMISSION', '野果接口地址不在已授权站点内');
   const access = {
     base: apiBase, site: origin, key: config.key, iv: config.iv, signKey: config.signKey,
-    identifier: host.crypto.random({ n: 16 }), loadedAt: Date.now()
+    identifier: host.crypto.randomHex(16), loadedAt: Date.now()
   };
   yeguoAccessCache = access;
   return access;
@@ -268,8 +268,12 @@ async function yeguoDecodeResponse(body, access) {
       if (typeof v !== 'string' && typeof v !== 'number' && typeof v !== 'boolean') throw host.error('E_PARSE', '野果响应签名字段格式无效');
       pieces.push(k + '=' + (k === 'data' ? String(v).replace(/ /g, '+') : String(v)));
     }
-    const digest = host.crypto.hash({ alg: 'sha256', data: pieces.join('&') + access.signKey.value, in: access.signKey.encoding, out: 'hex' });
-    const expected = host.crypto.hash({ alg: 'md5', data: digest, in: 'utf8', out: 'hex' });
+    // Preserve the native Go implementation's byte concatenation: UTF-8 envelope
+    // fields followed by the sign key in its declared encoding.
+    const prefixBytes = host.codec.convert(pieces.join('&'), 'utf8', 'latin1');
+    const signKeyBytes = host.codec.convert(access.signKey.value, access.signKey.encoding, 'latin1');
+    const digest = host.crypto.sha256(prefixBytes + signKeyBytes, { in: 'latin1', out: 'hex' });
+    const expected = host.crypto.md5(digest, { in: 'utf8', out: 'hex' });
     if (expected.toLowerCase() !== String(envelope.sign).toLowerCase()) throw host.error('E_PARSE', '野果接口响应签名校验失败');
   }
   if (typeof envelope.data === 'string') {
