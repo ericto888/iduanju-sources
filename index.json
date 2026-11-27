@@ -1,24 +1,12 @@
 {
   "schema": 1,
-  "name": "iDuanJu 站源商店",
+  "name": "Eric的站源商店",
   "updatedAt": "2026-11-27",
   "categories": [
-    {
-      "id": "video",
-      "name": "长视频"
-    },
-    {
-      "id": "shortdrama",
-      "name": "短剧"
-    },
-    {
-      "id": "comic",
-      "name": "漫画"
-    },
-    {
-      "id": "live",
-      "name": "直播"
-    }
+    { "id": "video", "name": "长视频" },
+    { "id": "shortdrama", "name": "短剧" },
+    { "id": "comic", "name": "漫画" },
+    { "id": "live", "name": "直播" }
   ],
   "plugins": [
     {
@@ -30,7 +18,7 @@
       "version": "1.4.11",
       "description": "黄瓜短剧：推荐分类置顶，保留官网真实分类、首页 TOP5 轮播及播放功能。",
       "category": "shortdrama",
-      "author": "iDuanJu 社区移植"
+      "author": "Eric"
     },
     {
       "id": "com.eric.idj.hgaihub",
@@ -41,7 +29,7 @@
       "version": "1.2.8",
       "description": "黄瓜短剧 AI 站（hgaihub.com）：首页 TOP5 精选轮播及分类横向选片栏，包含最新上新、黄瓜原创、AI短剧、AI漫剧；支持搜索、详情和逐集播放。",
       "category": "shortdrama",
-      "author": "iDuanJu 社区移植"
+      "author": "Eric"
     },
     {
       "id": "com.eric.idj.xvideos",
@@ -51,7 +39,7 @@
       "adult": true,
       "description": "XVideos：新增分类浏览，分类置于上月最佳之后；保留多清晰度线路解析。",
       "category": "video",
-      "author": "iDuanJu 社区移植",
+      "author": "Eric",
       "version": "1.0.11"
     },
     {
@@ -61,9 +49,9 @@
       "type": "shortdrama",
       "adult": true,
       "version": "0.1.0",
-      "description": "野果短剧：原创、热门、都市、逆袭、古装、校园及 PMV 栏目；成人内容，需在客户端解锁后显示。播放解析待真机验证。",
+      "description": "野果短剧：原创、热门、都市、逆袭、古装、校园及 PMV 栏目；成人内容，需在客户端解锁后显示。",
       "category": "shortdrama",
-      "author": "iDuanJu 社区移植"
+      "author": "Eric"
     }
   ]
 }
