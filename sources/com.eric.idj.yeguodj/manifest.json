@@ -2,12 +2,12 @@
   "schema": 1,
   "id": "com.eric.idj.yeguodj",
   "name": "野果短剧",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "author": {
     "name": "Eric",
     "contact": "https://github.com/ericto888/iduanju-sources"
   },
-  "description": "野果短剧：修复插件加密宿主接口调用，保留 Nuxt 模块发现、官方 API 分集与播放解析。",
+  "description": "野果短剧：修复封面 CDN 授权，并将官方播放 CDN 地址安全升级为 HTTPS。",
   "type": "shortdrama",
   "adult": true,
   "minAppVersion": "1.5",
@@ -37,7 +37,9 @@
       "ygdj29.com",
       "*.ygdj29.com",
       "api1.ldlmkzcq.cc",
-      "*.ldlmkzcq.cc"
+      "*.ldlmkzcq.cc",
+      "pic.biacea.cn",
+      "op.micgqv.cn"
     ],
     "storage": true
   },
