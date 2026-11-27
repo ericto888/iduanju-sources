@@ -20,7 +20,13 @@ const CATEGORIES = [
   { id: 'newest', name: '最新上新' },
   { id: 'yuanchuang', name: '黄瓜原创' },
   { id: 'duanju', name: 'AI短剧' },
-  { id: 'manju', name: 'AI漫剧' }
+  { id: 'manju', name: 'AI漫剧' },
+  // 官网热门标签分类，使用无冒号 ID，兼容宿主分类路由。
+  { id: 'tag-dushi', name: '都市' },
+  { id: 'tag-shunv', name: '熟女' },
+  { id: 'tag-luanlun', name: '乱伦' },
+  { id: 'tag-lvmao', name: '绿帽' },
+  { id: 'tag-nixi', name: '逆袭' }
 ];
 
 function clean(value) {
