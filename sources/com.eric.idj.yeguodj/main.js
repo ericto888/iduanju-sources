@@ -442,11 +442,18 @@ function yeguoCover(value, base, depth) {
     (match[4] || '') + (match[5] || '');
 }
 // 野果封面（pic.biacea.cn）整个响应体是 AES-128-CBC 加密的，key/iv 与 App 内置的
-// 「黄果 AI 封面」完全相同。Android 宿主在插件条目没有 coverHeaders 时会把原始 https
-// 地址直接交给 Coil，而 Coil 的封面拦截器会解密任何包含 "drleao." 的地址；因此给加密
-// 封面加一个标记参数，Android 端就能原生解密出图（图片服务器会忽略该参数，实测字节不变）。
-// 注意：iOS 宿主会把封面统一包成 idjimg:// 且不解密，这条路径在宿主更新前仍无法出图。
+// 「黄果 AI 封面」相同。0.3.2 起通过插件协议字段 coverTransform 交给宿主原生解密
+// （iOS / Android 新版都支持）；旧版 Android 另外靠 "drleao." 标记走 Coil 封面拦截器兜底。
+// 旧版 iOS 宿主没有封面解密能力，只能升级 App。
 const COVER_CRYPTO_MARK = 'idj=drleao.';
+const COVER_TRANSFORM = {
+  type: 'aes',
+  key: 'f5d965df75336270',
+  iv: '97b60394abc2fbe1',
+  keyEncoding: 'utf8',
+  mode: 'cbc',
+  padding: 'pkcs7'
+};
 function isBiaceaCover(url) {
   const m = /^https?:\/\/([^/?#]+)/i.exec(String(url || ''));
   const host = m ? m[1].toLowerCase() : '';
@@ -462,8 +469,11 @@ function setCover(item, cover) {
   const u = appCover(cover);
   if (!u) return;
   item.cover = u;
-  // 带解密标记的封面必须不带 coverHeaders，Android 宿主才会保留原始地址交给 Coil 解密。
-  if (!isBiaceaCover(u)) item.coverHeaders = { Referer: ORIGIN + '/' };
+  if (isBiaceaCover(u)) {
+    item.coverTransform = COVER_TRANSFORM;
+  } else {
+    item.coverHeaders = { Referer: ORIGIN + '/' };
+  }
 }
 function yeguoEpisodePage(id, number) {
   return ORIGIN + '/drama/video/' + id + (number > 1 ? '/ep-' + number : '') + '/';
