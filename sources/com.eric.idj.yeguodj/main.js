@@ -443,10 +443,11 @@ function yeguoCover(value, base, depth) {
   return match[1].toLowerCase() + '://' + match[2] + '/' + parts.join('/') +
     (match[4] || '') + (match[5] || '');
 }
-// 野果封面（pic.biacea.cn）整个响应体是 AES-128-CBC 加密的，key/iv 与 App 内置的
-// 「黄果 AI 封面」相同。0.3.2 起通过插件协议字段 coverTransform 交给宿主原生解密
-// （iOS / Android 新版都支持）；旧版 Android 另外靠 "drleao." 标记走 Coil 封面拦截器兜底。
-// 旧版 iOS 宿主没有封面解密能力，只能升级 App。
+// 野果封面（pic.biacea.cn）整个响应体是 AES-128-CBC 密文。
+// 必须与主程序 STV/Providers/Common/CoverImage.swift 的 CoverCrypto.aiAES 完全一致：
+// 相同 key / IV、CBC、NoPadding（CCOptions(0)）。插件通过 coverTransform 交给
+// iOS PluginMedia 与 Android PluginMedia 原生解密；两端均支持 padding: "none"。
+// idj=drleao. 标记保留给旧版 Android 原生封面拦截路径，不能代替 coverTransform。
 const COVER_CRYPTO_MARK = 'idj=drleao.';
 const COVER_TRANSFORM = {
   type: 'aes',
@@ -454,7 +455,7 @@ const COVER_TRANSFORM = {
   iv: '97b60394abc2fbe1',
   keyEncoding: 'utf8',
   mode: 'cbc',
-  padding: 'pkcs7'
+  padding: 'none'
 };
 function isBiaceaCover(url) {
   const m = /^https?:\/\/([^/?#]+)/i.exec(String(url || ''));
