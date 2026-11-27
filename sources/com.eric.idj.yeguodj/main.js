@@ -349,22 +349,39 @@ export default {
     const q = clean(keyword);
     const p = Math.max(1, Number(page) || 1);
     if (!q) return { items: [], page: p, hasMore: false };
-    const encoded = encodeURIComponent(q);
-    const candidates = [
-      ORIGIN + '/search/?q=' + encoded + (p > 1 ? '&page=' + p : ''),
-      ORIGIN + '/search/?keyword=' + encoded + (p > 1 ? '&page=' + p : ''),
-      ORIGIN + '/?s=' + encoded + (p > 1 ? '&paged=' + p : '')
-    ];
-    let lastError = null;
-    for (let i = 0; i < candidates.length; i++) {
-      try {
-        const res = await requestUrl(candidates[i]);
-        const items = pageItems(res.body, res.url);
-        if (items.length) return { items: items, page: p, hasMore: hasNext(res.body, p) };
-      } catch (e) { lastError = e; }
+
+    // Use the same official search API as the native GuoApp provider.
+    // The website's public HTML /search routes are not the actual search endpoint.
+    const data = await yeguoApiCall('/api/search/result', {
+      keyword: q, tab: 'video', page: String(p), limit: '20'
+    });
+    const rows = Array.isArray(data.list) ? data.list : [];
+    if (rows.length > 500) throw host.error('E_PARSE', '野果搜索结果数量异常');
+    const seen = {};
+    const items = [];
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i] || {};
+      const id = clean(row.video_id || row.id);
+      const title = clean(row.title);
+      if (!/^\\d+$/.test(id) || !title || seen[id]) continue;
+      seen[id] = true;
+      const item = { id: id, title: title };
+      const cover = yeguoCover(row.cover, ORIGIN);
+      if (cover) {
+        item.cover = cover;
+        item.coverHeaders = { Referer: ORIGIN + '/' };
+      }
+      const count = Number(row.episode_count || row.episodes || row.total_serial);
+      if (Number.isFinite(count) && count > 0) item.remarks = count + '集';
+      items.push(item);
     }
-    if (lastError) throw lastError;
-    throw host.error('E_NOT_FOUND', '野果短剧没有找到匹配内容，或搜索地址已变化');
+    const limit = Math.max(1, Number(data.limit || data.page_size || data.pageSize) || 20);
+    const total = Number(data.total || data.total_count || data.totalCount);
+    const hasMore = Number.isFinite(total) && total >= 0
+      ? p * limit < total
+      : rows.length >= limit;
+    if (rows.length && !items.length) throw host.error('E_PARSE', '野果搜索接口返回数据，但未能识别剧集字段');
+    return { items: items, page: p, hasMore: hasMore && items.length > 0 };
   },
 
   async detail({ id }) {
@@ -395,7 +412,10 @@ export default {
       lines: [{ name: '默认线路', episodes: normalized.map(function (ep) { return { id: ep.id, name: ep.name }; }) }]
     };
     const cover = yeguoCover(row.cover, ORIGIN);
-    if (cover) result.cover = cover;
+    if (cover) {
+      result.cover = cover;
+      result.coverHeaders = { Referer: ORIGIN + '/' };
+    }
     return result;
   },
 
