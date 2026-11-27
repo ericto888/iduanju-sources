@@ -60,8 +60,8 @@
       "manifest": "https://raw.githubusercontent.com/ericto888/iduanju-sources/main/sources/com.eric.idj.yeguodj/manifest.json",
       "type": "shortdrama",
       "adult": true,
-      "version": "0.4.7",
-      "description": "野果短剧：支持 pic.nsxxlj.cn AES-128-CBC NoPadding 封面解密。",
+      "version": "0.4.8",
+      "description": "野果短剧：支持 AES 封面解密，修正竖版海报显示比例。",
       "category": "shortdrama",
       "author": "Eric"
     }
