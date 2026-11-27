@@ -38,8 +38,8 @@
       "manifest": "https://raw.githubusercontent.com/ericto888/iduanju-sources/main/sources/com.eric.idj.hgaihub/manifest.json",
       "type": "shortdrama",
       "adult": true,
-      "version": "1.2.9",
-      "description": "黄瓜短剧 AI 站：TOP5 精选、分类横向选片、搜索及逐集播放，修正竖版海报显示比例。",
+      "version": "1.3.0",
+      "description": "黄瓜 AI 短剧：恢复都市、熟女、乱伦、绿帽、逆袭热门标签，保留 TOP5 精选、分类货架及竖版海报。",
       "category": "shortdrama",
       "author": "Eric"
     },
