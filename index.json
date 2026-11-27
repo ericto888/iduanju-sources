@@ -60,8 +60,8 @@
       "manifest": "https://raw.githubusercontent.com/ericto888/iduanju-sources/main/sources/com.eric.idj.yeguodj/manifest.json",
       "type": "shortdrama",
       "adult": true,
-      "version": "0.4.3",
-      "description": "野果短剧：修复分类页 HTML 懒加载占位图覆盖正式封面的问题；保留 pic.nsxxlj.cn 图片授权、播放 CDN HTTPS 适配、原生 AES 封面解密及官方弹幕。",
+      "version": "0.4.4",
+      "description": "野果短剧：野果封面 AES 对齐主程序 AES-128-CBC NoPadding；保留分类封面修复、图片域名授权、播放 CDN HTTPS 适配及官方弹幕。",
       "category": "shortdrama",
       "author": "Eric"
     }
