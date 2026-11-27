@@ -60,8 +60,8 @@
       "manifest": "https://raw.githubusercontent.com/ericto888/iduanju-sources/main/sources/com.eric.idj.yeguodj/manifest.json",
       "type": "shortdrama",
       "adult": true,
-      "version": "0.2.1",
-      "description": "野果短剧：官方 API 完整分集与播放解析，增强 Nuxt 模块配置发现和封面 CDN 支持。",
+      "version": "0.2.2",
+      "description": "野果短剧：官方 API 完整分集与播放解析，增强 Nuxt 预加载模块及相对路径依赖发现。",
       "category": "shortdrama",
       "author": "Eric"
     }
