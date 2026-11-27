@@ -7,7 +7,7 @@ const CATEGORIES = [
   { id: 'rec-hot-drama', name: '热门精选短剧' },
   { id: 'rec-urban-emotion', name: '都市情感剧场' },
   { id: 'rec-rebirth-rise', name: '逆袭重生佳作' },
-  { id: 'rec-costume-travel', name: '古装穿越精选' },
+  { id: 'rec-ancient-travel', name: '古装穿越精选' },
   { id: 'rec-campus-youth', name: '校园青春故事' },
   { id: 'rec-pmv-variety', name: 'PMV综艺合集' }
 ];
