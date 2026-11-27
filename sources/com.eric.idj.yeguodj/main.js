@@ -65,7 +65,10 @@ function pageItems(body, base) {
     seen[m[1]] = true;
     const cover = absolute(attr(img, 'data-src') || attr(img, 'data-original') || attr(img, 'src'), base);
     const item = { id: m[1], title: title };
-    if (cover) item.cover = cover;
+    if (cover) {
+      item.cover = cover;
+      item.coverHeaders = { Referer: ORIGIN + '/' };
+    }
     out.push(item);
   }
   return out;
