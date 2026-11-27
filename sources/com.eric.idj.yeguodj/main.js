@@ -124,15 +124,29 @@ function coverMapFromPayload(text) {
   try { table = JSON.parse(body); } catch (_) { coverDiag('payload JSON解析失败，长度=' + body.length); return {}; }
   if (!Array.isArray(table) || table.length > 200000) { coverDiag('payload数组无效或超限，类型=' + (Array.isArray(table) ? 'array' : typeof table) + '，长度=' + (table && table.length || 0)); return {}; }
   const map = {};
+  const metadata = {};
   for (let i = 0; i < table.length; i++) {
     const row = table[i];
     if (!row || typeof row !== 'object' || Array.isArray(row)) continue;
     const id = payloadRef(table, row.video_id);
+    if (!(typeof id === 'number' || /^\d+$/.test(String(id == null ? '' : id)))) continue;
+    const key = String(id);
     const cover = yeguoCover(payloadRef(table, row.cover), ORIGIN);
-    if (!cover) continue;
-    if (typeof id === 'number' || /^\d+$/.test(String(id == null ? '' : id))) map[String(id)] = cover;
+    if (cover) map[key] = cover;
+
+    // Nuxt payload 中的剧集列表对象同时包含集数和连载状态。
+    const countValue = payloadRef(table,
+      row.episode_count != null ? row.episode_count :
+      row.episodes != null ? row.episodes : row.total_serial);
+    const count = Number(countValue);
+    const statusValue = payloadRef(table, row.serialize_status);
+    const status = String(statusValue == null ? '' : statusValue);
+    if (Number.isFinite(count) && count > 0) {
+      metadata[key] = { count: Math.floor(count), status: status };
+    }
   }
-  coverDiag('payload解析成功：table=' + table.length + '，有效封面映射=' + Object.keys(map).length);
+  map.__episodeMetadata = metadata;
+  coverDiag('payload解析成功：table=' + table.length + '，有效封面映射=' + Object.keys(map).filter(function (k) { return k !== '__episodeMetadata'; }).length + '，集数映射=' + Object.keys(metadata).length);
   return map;
 }
 function payloadUrlFromPage(body, base) {
@@ -171,6 +185,20 @@ function applyCovers(items, map, base) {
     if (isAESCover(cover)) { aesHosts++; if (item.coverTransform && item.coverTransform.type === 'aes') transformed++; }
   }
   coverDiag('封面匹配：items=' + items.length + '，payloadMap=' + Object.keys(map || {}).length + '，matched=' + matched + '，biacea=' + biacea + '，AES域名=' + aesHosts + '，AESTransform=' + transformed + '，hosts=' + Object.keys(hosts).slice(0, 4).join(','));
+}
+function applyEpisodeMetadata(items, map) {
+  const metadata = map && map.__episodeMetadata ? map.__episodeMetadata : {};
+  let matched = 0;
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i], meta = metadata[item.id];
+    if (!meta || !(meta.count > 0)) continue;
+    // 野果 serialize_status：1 连载中，2 已完结。
+    item.remarks = meta.status === '2'
+      ? '全' + meta.count + '集'
+      : '更新至' + meta.count + '集';
+    matched++;
+  }
+  coverDiag('集数备注匹配：items=' + items.length + '，matched=' + matched);
 }
 function hasNext(body, page) {  const html = String(body || '');
   if (/rel=["']next["']|下一页|下页|Next/i.test(html)) return true;
@@ -532,7 +560,9 @@ export default {
     const doc = parseDoc(res.body, res.url);
     const items = pageItems(res.body, res.url).slice(0, 5);
     coverDiag('首页封面流程开始');
-    applyCovers(items, await fetchCoverMap(res.body, res.url), res.url);
+    const payloadMap = await fetchCoverMap(res.body, res.url);
+    applyCovers(items, payloadMap, res.url);
+    applyEpisodeMetadata(items, payloadMap);
     const categories = CATEGORIES.filter(function (c) {
       return !!doc.selectFirst('a[href*="/drama/' + c.id + '/"]');
     });
@@ -548,7 +578,9 @@ export default {
     coverDiag('分类封面流程开始：page=' + p);
     // HTML img.src 可能始终有占位图，不能以“已有 cover”判断正式封面是否存在。
     // 每页都读取 Nuxt payload，并让正式封面覆盖 HTML 懒加载占位图。
-    applyCovers(items, await fetchCoverMap(res.body, res.url), res.url);
+    const payloadMap = await fetchCoverMap(res.body, res.url);
+    applyCovers(items, payloadMap, res.url);
+    applyEpisodeMetadata(items, payloadMap);
     return { items: items, page: p, hasMore: items.length > 0 && hasNext(res.body, p) };
   },
 
