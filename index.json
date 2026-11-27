@@ -60,8 +60,8 @@
       "manifest": "https://raw.githubusercontent.com/ericto888/iduanju-sources/main/sources/com.eric.idj.yeguodj/manifest.json",
       "type": "shortdrama",
       "adult": true,
-      "version": "0.2.5",
-      "description": "野果短剧：改用官方搜索接口，修复搜索结果解析，并为封面请求补充站点 Referer。",
+      "version": "0.2.6",
+      "description": "野果短剧：修复搜索结果剧集 ID 正则错误，保留封面 Referer 与播放 CDN 兼容处理。",
       "category": "shortdrama",
       "author": "Eric"
     }
