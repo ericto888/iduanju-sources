@@ -3,22 +3,10 @@
   "name": "Eric的站源商店",
   "updatedAt": "2026-11-28",
   "categories": [
-    {
-      "id": "video",
-      "name": "长视频"
-    },
-    {
-      "id": "shortdrama",
-      "name": "短剧"
-    },
-    {
-      "id": "comic",
-      "name": "漫画"
-    },
-    {
-      "id": "live",
-      "name": "直播"
-    }
+    {"id": "video", "name": "长视频"},
+    {"id": "shortdrama", "name": "短剧"},
+    {"id": "comic", "name": "漫画"},
+    {"id": "live", "name": "直播"}
   ],
   "plugins": [
     {
@@ -49,10 +37,10 @@
       "manifest": "https://raw.githubusercontent.com/ericto888/iduanju-sources/main/sources/com.eric.idj.xvideos/manifest.json",
       "type": "video",
       "adult": true,
-      "description": "XVideos：新增分类浏览，分类置于上月最佳之后；保留多清晰度线路解析。",
+      "description": "XVideos：接入新版首页滚动轮播与分类货架/抽屉导航；保留最新、上月最佳、分类分页及多清晰度线路解析。",
       "category": "video",
       "author": "Eric",
-      "version": "1.0.11"
+      "version": "1.0.12"
     },
     {
       "id": "com.eric.idj.yeguodj",
