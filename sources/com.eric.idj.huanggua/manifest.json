@@ -2,12 +2,12 @@
   "schema": 1,
   "id": "com.eric.idj.huanggua",
   "name": "黄瓜短剧",
-  "version": "1.4.11",
+  "version": "1.4.12",
   "author": {
     "name": "iDuanJu 社区移植",
     "contact": "https://github.com/ericto888/iduanju-sources"
   },
-  "description": "黄瓜短剧官方主站固定为 hgdju.com；支持内容线与官网题材标签分类的完整列表及分页，保留真实分类与 TOP5 轮播。",
+  "description": "黄瓜短剧官方主站固定为 hgdju.com；支持内容线与官网题材标签分类的完整列表及分页，保留真实分类与 TOP5 轮播，竖版海报按 portrait 显示。",
   "type": "shortdrama",
   "adult": true,
   "minAppVersion": "1.5",
