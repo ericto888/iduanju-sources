@@ -2,7 +2,7 @@
   "schema": 1,
   "id": "com.eric.idj.yeguodj",
   "name": "野果短剧",
-  "version": "0.4.9",
+  "version": "0.4.10",
   "author": {
     "name": "Eric",
     "contact": "https://github.com/ericto888/iduanju-sources"
@@ -26,7 +26,8 @@
       "*.ygdj29.com",
       "pic.biacea.cn",
       "*.biacea.cn",
-      "pic.nsxxlj.cn"
+      "pic.nsxxlj.cn",
+      "pic.vojggi.cn"
     ],
     "media": [
       "yeguodj.com",
@@ -44,7 +45,8 @@
       "pic.biacea.cn",
       "op.micgqv.cn",
       "pic.nsxxlj.cn",
-      "op.orwebn.cn"
+      "op.orwebn.cn",
+      "pic.vojggi.cn"
     ],
     "storage": true
   },
