@@ -21,6 +21,14 @@ function absolute(v, base) {
   if (s.charAt(0) === '/') { const root = /^https?:\/\/[^/]+/i.exec(base || ORIGIN); return (root ? root[0] : ORIGIN) + s; }
   return '';
 }
+function responseContentType(res) {
+  const headers = res && res.headers && typeof res.headers === 'object' ? res.headers : {};
+  const keys = Object.keys(headers);
+  for (let i = 0; i < keys.length; i++) {
+    if (keys[i].toLowerCase() === 'content-type') return clean(headers[keys[i]]).slice(0, 100);
+  }
+  return clean(res && (res.contentType || res.content_type)).slice(0, 100) || 'unknown';
+}
 function requestUrl(url, referer, attempt) {
   const retry = Number(attempt) || 0;
   return host.http.request({
@@ -36,7 +44,7 @@ function requestUrl(url, referer, attempt) {
       throw host.error(res && res.status === 404 ? 'E_NOT_FOUND' : 'E_HTTP',
         '野果短剧请求失败：HTTP ' + (res ? res.status : 0));
     }
-    return { body: String(res.body || ''), url: res.url || url };
+    return { body: String(res.body || ''), url: res.url || url, contentType: responseContentType(res) };
   }).catch(function (err) {
     const message = clean(err && (err.message || err));
     const networkFailure = /无法连接服务器|网络错误|network|timeout|timed out|连接失败/i.test(message);
@@ -160,7 +168,7 @@ async function fetchCoverMap(body, base) {
   coverDiag('请求payload：host=' + coverHost(payloadUrl));
   try {
     const res = await requestUrl(payloadUrl, base);
-    coverDiag('payload HTTP成功：status=2xx，host=' + coverHost(res.url || payloadUrl) + '，bodyLength=' + res.body.length);
+    coverDiag('payload HTTP成功：status=2xx，scheme=' + (/^https:/i.test(res.url || payloadUrl) ? 'https' : 'http') + '，host=' + coverHost(res.url || payloadUrl) + '，contentType=' + (res.contentType || 'unknown') + '，bodyLength=' + res.body.length);
     return coverMapFromPayload(res.body);
   } catch (err) {
     const msg = clean(err && (err.message || err)).replace(/https?:\/\/[^\s]+/g, '[url]').slice(0, 120);
@@ -172,7 +180,7 @@ async function fetchCoverMap(body, base) {
 // 可能只是横版/低清懒加载占位图，因此只要 payload 有对应封面就应覆盖 HTML 候选图。
 function applyCovers(items, map, base) {
   let matched = 0, biacea = 0, aesHosts = 0, transformed = 0;
-  const hosts = {};
+  const hosts = {}, samples = [];
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
     if (!map || !map[item.id]) continue;
@@ -181,10 +189,17 @@ function applyCovers(items, map, base) {
     setCover(item, cover);
     matched++;
     const h = coverHost(cover); hosts[h] = true;
+    if (samples.length < 5) {
+      const scheme = /^https:/i.test(cover) ? 'https' : (/^http:/i.test(cover) ? 'http' : 'other');
+      const path = /^https?:\/\/[^/]+(\/[^?#]*)?/i.exec(cover);
+      const ext = path && /\.([a-z0-9]{2,5})$/i.exec(path[1] || '');
+      samples.push('id=' + item.id + ':' + scheme + '://' + h + ',ext=' + (ext ? ext[1].toLowerCase() : 'none') +
+        ',aes=' + !!(item.coverTransform && item.coverTransform.type === 'aes'));
+    }
     if (isBiaceaCover(cover)) biacea++;
     if (isAESCover(cover)) { aesHosts++; if (item.coverTransform && item.coverTransform.type === 'aes') transformed++; }
   }
-  coverDiag('封面匹配：items=' + items.length + '，payloadMap=' + Object.keys(map || {}).length + '，matched=' + matched + '，biacea=' + biacea + '，AES域名=' + aesHosts + '，AESTransform=' + transformed + '，hosts=' + Object.keys(hosts).slice(0, 4).join(','));
+  coverDiag('封面匹配：items=' + items.length + '，payloadMap=' + Object.keys(map || {}).filter(function (k) { return k !== '__episodeMetadata'; }).length + '，matched=' + matched + '，biacea=' + biacea + '，AES域名=' + aesHosts + '，AESTransform=' + transformed + '，hosts=' + Object.keys(hosts).slice(0, 4).join(',') + '；样本=' + (samples.join('|') || 'none'));
 }
 function applyEpisodeMetadata(items, map) {
   const metadata = map && map.__episodeMetadata ? map.__episodeMetadata : {};
@@ -606,7 +621,7 @@ export default {
       seen[id] = true;
       const item = { id: id, title: title };
       setCover(item, yeguoCover(row.cover, ORIGIN));
-      if (items.length < 3) coverDiag('搜索封面：host=' + coverHost(item.cover) + '，AESTransform=' + !!(item.coverTransform && item.coverTransform.type === 'aes'));
+      if (items.length < 3) coverDiag('搜索封面：scheme=' + (/^https:/i.test(item.cover) ? 'https' : 'http') + '，host=' + coverHost(item.cover) + '，AESTransform=' + !!(item.coverTransform && item.coverTransform.type === 'aes'));
       const count = Number(row.episode_count || row.episodes || row.total_serial);
       if (Number.isFinite(count) && count > 0) {
         item.remarks = String(row.serialize_status) === '2'
@@ -652,7 +667,7 @@ export default {
       lines: [{ name: '默认线路', episodes: normalized.map(function (ep) { return { id: ep.id, name: ep.name }; }) }]
     };
     setCover(result, yeguoCover(row.cover, ORIGIN));
-    coverDiag('详情封面：id=' + vid + '，host=' + coverHost(result.cover) + '，AESTransform=' + !!(result.coverTransform && result.coverTransform.type === 'aes'));
+    coverDiag('详情封面：id=' + vid + '，scheme=' + (/^https:/i.test(result.cover) ? 'https' : 'http') + '，host=' + coverHost(result.cover) + '，AESTransform=' + !!(result.coverTransform && result.coverTransform.type === 'aes'));
     return result;
   },
 
