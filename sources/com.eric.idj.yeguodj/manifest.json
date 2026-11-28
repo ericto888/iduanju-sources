@@ -2,12 +2,12 @@
   "schema": 1,
   "id": "com.eric.idj.yeguodj",
   "name": "野果短剧",
-  "version": "0.4.10",
+  "version": "0.4.11",
   "author": {
     "name": "Eric",
     "contact": "https://github.com/ericto888/iduanju-sources"
   },
-  "description": "野果短剧：支持 AES 封面解密与竖版海报显示；首页、分类及搜索封面显示更新集数或完结总集数。",
+  "description": "野果短剧：支持竖版海报、AES 封面解密及封面 CDN 诊断日志；首页、分类及搜索封面显示更新集数或完结总集数。",
   "type": "shortdrama",
   "adult": true,
   "minAppVersion": "1.5",
