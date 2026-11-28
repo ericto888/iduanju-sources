@@ -3,10 +3,22 @@
   "name": "Eric的站源商店",
   "updatedAt": "2026-11-28",
   "categories": [
-    {"id": "video", "name": "长视频"},
-    {"id": "shortdrama", "name": "短剧"},
-    {"id": "comic", "name": "漫画"},
-    {"id": "live", "name": "直播"}
+    {
+      "id": "video",
+      "name": "长视频"
+    },
+    {
+      "id": "shortdrama",
+      "name": "短剧"
+    },
+    {
+      "id": "comic",
+      "name": "漫画"
+    },
+    {
+      "id": "live",
+      "name": "直播"
+    }
   ],
   "plugins": [
     {
@@ -48,8 +60,8 @@
       "manifest": "https://raw.githubusercontent.com/ericto888/iduanju-sources/main/sources/com.eric.idj.yeguodj/manifest.json",
       "type": "shortdrama",
       "adult": true,
-      "version": "0.4.9",
-      "description": "野果短剧：支持 AES 封面解密、竖版海报显示，并在首页、分类及搜索封面显示更新集数或完结总集数。",
+      "version": "0.4.10",
+      "description": "野果短剧：支持 AES 封面解密、竖版海报显示，并适配当前图片 CDN 域名授权。",
       "category": "shortdrama",
       "author": "Eric"
     }
